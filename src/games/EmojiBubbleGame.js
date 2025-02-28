@@ -239,13 +239,19 @@ const EmojiGame = () => {
   }, [setConfetti]);
   
   // Add createShrapnel function near other effect creators
-  const createShrapnel = useCallback((x, y) => {
-    const shrapnelCount = 12; // Number of shrapnel pieces
+  const createShrapnel = useCallback((x, y, size = 60) => {
+    // Scale shrapnel count based on size: 12 pieces for smallest grenades (60px), up to 36 for largest (200px)
+    const baseShrapnelCount = 12;
+    const shrapnelCount = Math.floor(baseShrapnelCount * (size / 60));
     const newShrapnel = [];
+    
+    // Scale speed based on size too
+    const baseSpeed = 8;
+    const speedMultiplier = size / 60;
     
     for (let i = 0; i < shrapnelCount; i++) {
       const angle = (i / shrapnelCount) * Math.PI * 2;
-      const speed = 8 + Math.random() * 4;
+      const speed = (baseSpeed + Math.random() * 4) * speedMultiplier;
       
       newShrapnel.push({
         id: Math.random().toString(36).substring(2, 9),
@@ -253,7 +259,7 @@ const EmojiGame = () => {
         y,
         speedX: Math.cos(angle) * speed,
         speedY: Math.sin(angle) * speed,
-        size: 8,
+        size: 8 + (size / 60), // Slightly larger shrapnel for bigger grenades
         createdAt: Date.now(),
         lastUpdateTime: Date.now(),
       });
@@ -268,10 +274,11 @@ const EmojiGame = () => {
     if (!bubble) return;
 
     if (bubble.isGrenade) {
-      // Create shrapnel
+      // Create shrapnel - pass the bubble size
       const shrapnel = createShrapnel(
         bubble.x + bubble.size/2,
-        bubble.y + bubble.size/2
+        bubble.y + bubble.size/2,
+        bubble.size
       );
       
       // Add shrapnel to state
