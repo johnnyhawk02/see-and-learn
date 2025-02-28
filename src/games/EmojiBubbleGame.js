@@ -75,9 +75,12 @@ const EmojiGame = () => {
       scaleY: 1, // Normal vertical scale
       isColliding: false, // Track collision state
       lastUpdateTime: Date.now(), // Track time for physics calculations
+      createdAt: Date.now(), // Add this line
       canSplit, // Whether this bubble can split when popped
       lastCollision: Date.now(), // Track when the bubble last collided with something
       dragFactor: 1.0, // Start with no drag
+      isFading: false,  // Add this
+      opacity: 1,       // Add this
     };
 }, [emojis]);
   
@@ -323,29 +326,19 @@ const EmojiGame = () => {
     // Bubble generator - separate from timer
     const generateBubble = () => {
       setBubbles(currentBubbles => {
-        // Limit total bubble count
-        if (currentBubbles.length >= 3) return currentBubbles;
+        // Reduce maximum bubbles from 3 to 2
+        if (currentBubbles.length >= 2) return currentBubbles;
         
         return [...currentBubbles, generateRandomBubble()];
       });
       
-      // Schedule next bubble
-      const delay = 500 + Math.random() * 500; // 500-1000ms variable timing
+      // Increased delay between bubbles (800-1500ms instead of 500-1000ms)
+      const delay = 800 + Math.random() * 700;
       bubbleTimerRef.current = setTimeout(generateBubble, delay);
     };
     
-    // Start bubble generation
-    const bubbleTimerRef = { current: setTimeout(generateBubble, 500) };
-    
-    // Sometimes generate an extra bubble immediately
-    if (Math.random() > 0.5) {
-      setTimeout(() => {
-        setBubbles(currentBubbles => {
-          if (currentBubbles.length >= 3) return currentBubbles;
-          return [...currentBubbles, generateRandomBubble()];
-        });
-      }, 100);
-    }
+    // Start bubble generation with longer initial delay
+    const bubbleTimerRef = { current: setTimeout(generateBubble, 800) };
     
     return () => {
       clearInterval(timer);
@@ -359,11 +352,30 @@ const EmojiGame = () => {
     
     const updateBubbles = (timestamp) => {
       setBubbles(currentBubbles => {
-        // First update positions and handle wall collisions
         let updatedBubbles = currentBubbles.map(bubble => {
           const now = Date.now();
-          const elapsed = now - bubble.lastUpdateTime; // Time since last update in ms
-          const deltaTime = elapsed / 1000; // Convert to seconds for physics calculations
+          const elapsed = now - bubble.lastUpdateTime;
+          const deltaTime = elapsed / 1000;
+          
+          // Check if bubble should start fading
+          const age = now - bubble.createdAt;
+          const maxAge = 10000; // 10 seconds
+          
+          if (age > maxAge && !bubble.isFading) {
+            bubble.isFading = true;
+            bubble.fadeStartTime = now;
+          }
+          
+          // Handle fading
+          if (bubble.isFading) {
+            const fadeElapsed = now - bubble.fadeStartTime;
+            const fadeDuration = 1000; // 1 second fade
+            bubble.opacity = Math.max(0, 1 - (fadeElapsed / fadeDuration));
+            
+            // Make bubble slowly float upward while fading
+            bubble.speedY = -2;
+            bubble.speedX *= 0.95; // Slow horizontal movement
+          }
           
           let { 
             x, y, speedX, speedY, size, bounceX, bounceY, bounceDecay, 
@@ -536,13 +548,20 @@ const EmojiGame = () => {
             temporarySize: size * (1 + bounceFactor),
             lastUpdateTime: now,
             lastCollision,
-            dragFactor
+            dragFactor,
+            opacity: bubble.opacity,
+            isFading: bubble.isFading,
+            fadeStartTime: bubble.fadeStartTime,
           };
         }).filter(bubble => {
-          // Remove bubbles that have very low bounce or are offscreen
+          // Remove bubbles that:
+          // 1. Have very low bounce
+          // 2. Are offscreen
+          // 3. Have completed fading
           const minBounce = 0.3;
           return (bubble.bounceX > minBounce || bubble.bounceY > minBounce) && 
-                 bubble.y < window.innerHeight + bubble.size;
+                 bubble.y < window.innerHeight + bubble.size &&
+                 bubble.opacity > 0;
         });
         
         // Then check for and handle bubble-bubble collisions
@@ -730,7 +749,9 @@ const EmojiGame = () => {
               transform: `rotate(${bubble.rotation}deg) scale(${bubble.scaleX}, ${bubble.scaleY})`,
               backgroundColor: bubbleColor,
               fontSize: `${bubble.size / 2}px`,
-              boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+              boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+              opacity: bubble.opacity,
+              transition: bubble.isFading ? 'opacity 0.1s' : 'none',
             }}
             onClick={() => popBubble(bubble.id)}
             onTouchStart={(e) => {
