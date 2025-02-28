@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
 const EmojiGame = () => {
   const [bubbles, setBubbles] = useState([]);
@@ -9,7 +9,7 @@ const EmojiGame = () => {
   const [gameActive, setGameActive] = useState(false);
   
   // Emoji collection
-  const emojis = [
+  const emojis = useMemo(() => [
     // Original emojis
     "😀", "🎉", "🚀", "🌈", "🦄", "🍕", "🎮", "🎸", "🏆", "⚡",
     
@@ -27,9 +27,13 @@ const EmojiGame = () => {
     
     // Activities & Sports
     "🏄‍♂️", "🏀", "⚽", "🏹", "🎪", "🎡", "🎢", "🧩", "🎲", "🎧"
-  ];
+], []);
   
   // Generate random parameters for bubbles - now with size categories
+
+  
+    // Function body...
+  
   const generateRandomBubble = useCallback((size = null, position = null, velocity = null) => {
     const id = Math.random().toString(36).substring(2, 9);
     const emoji = emojis[Math.floor(Math.random() * emojis.length)];
@@ -75,7 +79,7 @@ const EmojiGame = () => {
       lastCollision: Date.now(), // Track when the bubble last collided with something
       dragFactor: 1.0, // Start with no drag
     };
-  }, [emojis]);
+}, [emojis]);
   
   // Function to check for collisions between bubbles
   const checkCollisions = (bubbles) => {
