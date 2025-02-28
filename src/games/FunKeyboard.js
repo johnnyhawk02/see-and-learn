@@ -6,9 +6,9 @@ const FunKeyboard = () => {
   
   // Keyboard layout
   const keyboardRows = [
-    ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-    ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-    ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
+    ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+    ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+    ['z', 'x', 'c', 'v', 'b', 'n', 'm'],
     [' '] // Space bar
   ];
   
@@ -25,12 +25,8 @@ const FunKeyboard = () => {
     // Handle special cases for better pronunciation
     let utteranceText = letter;
     
-    // Special handling for letter O
-    if (letter === 'O') {
-      utteranceText = 'Ohhh';  // Emphasis to get better sound
-    } 
     // Use word for space
-    else if (letter === ' ') {
+    if (letter === ' ') {
       utteranceText = 'Space';
     }
     
@@ -57,8 +53,8 @@ const FunKeyboard = () => {
   // Handle physical keyboard input
   useEffect(() => {
     const handleKeyDown = (e) => {
-      const key = e.key.toUpperCase();
-      if (/^[A-Z0-9 ]$/.test(key)) {
+      const key = e.key.toLowerCase();
+      if (/^[a-z0-9 ]$/.test(key)) {
         handleKeyPress(key);
       } else if (e.key === 'Escape') {
         // Clear text on Escape key

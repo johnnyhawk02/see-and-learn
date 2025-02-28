@@ -7,34 +7,24 @@ const EmojiGame = () => {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
   const [gameActive, setGameActive] = useState(false);
+  const [shrapnel, setShrapnel] = useState([]);
+  const [hasSpawnedGrenade, setHasSpawnedGrenade] = useState(false);
   
   // Emoji collection
   const emojis = useMemo(() => [
-    // Original emojis
-    "😀", "🎉", "🚀", "🌈", "🦄", "🍕", "🎮", "🎸", "🏆", "⚡",
-    
-    // Fun characters
-    "🤪", "🥳", "😎", "🤩", "👽", "👾", "🤖", "👻", "🧙‍♂️", "🧚‍♀️",
-    
-    // Animals
+    // Animals only
     "🐶", "🐱", "🐼", "🦊", "🦁", "🐯", "🦖", "🐙", "🦋", "🐳",
-    
-    // Food
-    "🍦", "🧁", "🍩", "🍭", "🍫", "🍓", "🍔", "🌮", "🍿", "🥤",
-    
-    // Objects
-    "💎", "🎈", "🎁", "💣", "🧨", "🎯", "🔮", "💰", "🎭", "🎨",
-    
-    // Activities & Sports
-    "🏄‍♂️", "🏀", "⚽", "🏹", "🎪", "🎡", "🎢", "🧩", "🎲", "🎧"
-], []);
+    "🦄", "🐸", "🐰", "🐨", "🐮", "🐷", "🐵", "🦒", "🦘", "🦩",
+    "🦦", "🦥", "🦡", "🦨", "🦔", "🐿️", "🦫", "🦃", "🦚", "🦜",
+    "🐧", "🦢", "🦅", "🦉", "🐢", "🦎", "🐠", "🐡", "🦈", "🐋"
+  ], []);
   
   // Generate random parameters for bubbles - now with size categories
 
   
     // Function body...
   
-  const generateRandomBubble = useCallback((size = null, position = null, velocity = null) => {
+  const generateRandomBubble = useCallback((size = null, position = null, velocity = null, forceGrenade = false) => {
     const id = Math.random().toString(36).substring(2, 9);
     const emoji = emojis[Math.floor(Math.random() * emojis.length)];
     
@@ -62,27 +52,44 @@ const EmojiGame = () => {
     const momentOfInertia = bubbleSize * bubbleSize / 400; // Larger bubbles have more inertia
     const angularMomentum = angularVelocity * momentOfInertia;
     
-    const color = `hsla(${Math.floor(Math.random() * 360)}, 80%, 70%, 0.8)`;
     const bounceX = 0.96 + Math.random() * 0.4; // Bounce factor for X direction
     const bounceY = 0.96 + Math.random() * 0.4; // Bounce factor for Y direction
     const bounceDecay = 0.97; // How much energy is lost on each bounce
     
+    // Make it a grenade if forced or higher chance (if we haven't spawned one yet)
+    const isGrenade = forceGrenade || Math.random() < 0.3; // 30% chance for grenades
+    
+    if (isGrenade) {
+      setHasSpawnedGrenade(true);
+    }
+    
+    const bubbleColor = isGrenade ? 'rgba(0, 0, 0, 0.8)' : `hsla(${Math.floor(Math.random() * 360)}, 80%, 70%, 0.8)`;
+    const bubbleEmoji = isGrenade ? '💣' : emoji;
+    
     return { 
-      id, emoji, size: bubbleSize, x, y, speedX, speedY, rotation, angularVelocity, 
-      angularMomentum, momentOfInertia, angularDrag, color, 
-      bounceX, bounceY, bounceDecay, lastBounce: 0,
-      scaleX: 1, // Normal horizontal scale
-      scaleY: 1, // Normal vertical scale
-      isColliding: false, // Track collision state
-      lastUpdateTime: Date.now(), // Track time for physics calculations
-      createdAt: Date.now(), // Add this line
-      canSplit, // Whether this bubble can split when popped
-      lastCollision: Date.now(), // Track when the bubble last collided with something
-      dragFactor: 1.0, // Start with no drag
-      isFading: false,  // Add this
-      opacity: 1,       // Add this
+      id,
+      emoji: bubbleEmoji,
+      size: bubbleSize,
+      x, y, speedX, speedY,
+      rotation, angularVelocity, 
+      angularMomentum, momentOfInertia,
+      angularDrag,
+      color: bubbleColor,
+      bounceX, bounceY, bounceDecay,
+      lastBounce: 0,
+      scaleX: 1,
+      scaleY: 1,
+      isColliding: false,
+      lastUpdateTime: Date.now(),
+      createdAt: Date.now(),
+      canSplit,
+      lastCollision: Date.now(),
+      dragFactor: 1.0,
+      isFading: false,
+      opacity: 1,
+      isGrenade
     };
-}, [emojis]);
+}, [emojis, hasSpawnedGrenade]);
   
   // Function to check for collisions between bubbles
   const checkCollisions = (bubbles) => {
@@ -189,13 +196,14 @@ const EmojiGame = () => {
   const startGame = () => {
     setGameActive(true);
     setScore(0);
-    setTimeLeft(30);
+    setTimeLeft(120);
     setBubbles([]);
     setFallingEmojis([]);
     setConfetti([]);
+    setHasSpawnedGrenade(false); // Reset grenade spawn state
   };
   
-  const createConfetti = (x, y, color) => {
+  const createConfetti = useCallback((x, y, color) => {
     const confettiCount = 40 + Math.floor(Math.random() * 20); // Increased count
     const newConfetti = [];
     
@@ -228,13 +236,53 @@ const EmojiGame = () => {
     }
     
     setConfetti(current => [...current, ...newConfetti]);
-  };
+  }, [setConfetti]);
+  
+  // Add createShrapnel function near other effect creators
+  const createShrapnel = useCallback((x, y) => {
+    const shrapnelCount = 12; // Number of shrapnel pieces
+    const newShrapnel = [];
+    
+    for (let i = 0; i < shrapnelCount; i++) {
+      const angle = (i / shrapnelCount) * Math.PI * 2;
+      const speed = 8 + Math.random() * 4;
+      
+      newShrapnel.push({
+        id: Math.random().toString(36).substring(2, 9),
+        x,
+        y,
+        speedX: Math.cos(angle) * speed,
+        speedY: Math.sin(angle) * speed,
+        size: 8,
+        createdAt: Date.now(),
+        lastUpdateTime: Date.now(),
+      });
+    }
+    
+    return newShrapnel;
+  }, []);
   
   // Create confetti particles and split bubbles when needed
-  const popBubble = (id) => {
-    // Find the bubble before removing it
+  const popBubble = useCallback((id) => {
     const bubble = bubbles.find(b => b.id === id);
-    if (bubble) {
+    if (!bubble) return;
+
+    if (bubble.isGrenade) {
+      // Create shrapnel
+      const shrapnel = createShrapnel(
+        bubble.x + bubble.size/2,
+        bubble.y + bubble.size/2
+      );
+      
+      // Add shrapnel to state
+      setShrapnel(current => [...current, ...shrapnel]);
+      
+      // Add explosion effect
+      createConfetti(bubble.x + bubble.size/2, bubble.y + bubble.size/2, 'rgba(255, 87, 34, 0.8)');
+      
+      // Award extra points for popping a grenade
+      setScore(currentScore => currentScore + 25);
+    } else {
       // Create a falling emoji effect
       const fallingEmoji = {
         id: `falling-${bubble.id}`,
@@ -282,11 +330,14 @@ const EmojiGame = () => {
           const smallerBubble = generateRandomBubble(
             bubble.size * 0.6, 
             newPosition,
-            newVelocity
+            newVelocity,
+            Math.random() < 0.4 // 40% chance for smaller bubbles to be grenades
           );
           
-          // Inherit color from parent for visual continuity
-          smallerBubble.color = bubble.color;
+          // Inherit color from parent for visual continuity if not a grenade
+          if (!smallerBubble.isGrenade) {
+            smallerBubble.color = bubble.color;
+          }
           
           // Add to new bubbles array
           smallerBubbles.push(smallerBubble);
@@ -303,9 +354,9 @@ const EmojiGame = () => {
       }
     }
     
-    // Remove the bubble
-    setBubbles(currentBubbles => currentBubbles.filter(bubble => bubble.id !== id));
-  };
+    // Remove the popped bubble
+    setBubbles(currentBubbles => currentBubbles.filter(b => b.id !== id));
+  }, [bubbles, createShrapnel, createConfetti, generateRandomBubble, setShrapnel, setFallingEmojis, setBubbles, setScore]);
   
   // Game timer and bubble generator
   useEffect(() => {
@@ -323,28 +374,28 @@ const EmojiGame = () => {
       });
     }, 1000);
     
-    // Bubble generator - separate from timer
+    // Bubble generator
     const generateBubble = () => {
       setBubbles(currentBubbles => {
-        // Reduce maximum bubbles from 3 to 2
         if (currentBubbles.length >= 2) return currentBubbles;
         
-        return [...currentBubbles, generateRandomBubble()];
+        // Force spawn a grenade if we haven't had one and game is 2/3 done
+        const forceGrenade = !hasSpawnedGrenade && timeLeft <= 10;
+        
+        return [...currentBubbles, generateRandomBubble(null, null, null, forceGrenade)];
       });
       
-      // Increased delay between bubbles (800-1500ms instead of 500-1000ms)
       const delay = 800 + Math.random() * 700;
       bubbleTimerRef.current = setTimeout(generateBubble, delay);
     };
     
-    // Start bubble generation with longer initial delay
     const bubbleTimerRef = { current: setTimeout(generateBubble, 800) };
     
     return () => {
       clearInterval(timer);
       clearTimeout(bubbleTimerRef.current);
     };
-  }, [gameActive, generateRandomBubble]);
+  }, [gameActive, generateRandomBubble, hasSpawnedGrenade, timeLeft]);
   
   // Update bubble positions with physics-based rotation - using requestAnimationFrame for smoother motion
   useEffect(() => {
@@ -719,6 +770,71 @@ const EmojiGame = () => {
   
   const backgroundGradient = 'bg-gradient-to-br from-purple-400 via-pink-300 to-blue-400';
   
+  // Add shrapnel update effect
+  useEffect(() => {
+    if (!gameActive || shrapnel.length === 0) return;
+    
+    const updateShrapnel = (timestamp) => {
+      setShrapnel(current => {
+        return current.map(piece => {
+          const now = Date.now();
+          const elapsed = now - piece.lastUpdateTime;
+          const deltaTime = elapsed / 1000;
+          
+          // Update position
+          const x = piece.x + piece.speedX * deltaTime * 60;
+          const y = piece.y + piece.speedY * deltaTime * 60;
+          
+          // Check for collisions with bubbles
+          setBubbles(currentBubbles => {
+            return currentBubbles.filter(bubble => {
+              const bubbleCenter = {
+                x: bubble.x + bubble.size/2,
+                y: bubble.y + bubble.size/2
+              };
+              
+              const distance = Math.sqrt(
+                Math.pow(x - bubbleCenter.x, 2) + 
+                Math.pow(y - bubbleCenter.y, 2)
+              );
+              
+              // If shrapnel hits a bubble, pop it
+              if (distance < bubble.size/2 + piece.size/2) {
+                popBubble(bubble.id);
+                return false;
+              }
+              return true;
+            });
+          });
+          
+          return {
+            ...piece,
+            x,
+            y,
+            lastUpdateTime: now
+          };
+        }).filter(piece => {
+          // Remove shrapnel that's off screen or too old
+          return piece.x >= 0 && 
+                 piece.x <= window.innerWidth && 
+                 piece.y >= 0 && 
+                 piece.y <= window.innerHeight &&
+                 Date.now() - piece.createdAt < 2000;
+        });
+      });
+      
+      animationRef.current = requestAnimationFrame(updateShrapnel);
+    };
+    
+    const animationRef = { current: requestAnimationFrame(updateShrapnel) };
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [shrapnel.length, gameActive, popBubble]);
+  
   return (
     <div className={`w-full h-screen ${backgroundGradient} overflow-hidden relative`}>
       {/* Game UI */}
@@ -814,6 +930,21 @@ const EmojiGame = () => {
         </div>
       ))}
       
+      {/* Shrapnel */}
+      {shrapnel.map(piece => (
+        <div 
+          key={piece.id}
+          className="absolute rounded-full bg-gray-800"
+          style={{
+            left: `${piece.x}px`,
+            top: `${piece.y}px`,
+            width: `${piece.size}px`,
+            height: `${piece.size}px`,
+            boxShadow: '0 0 5px rgba(0,0,0,0.5)',
+          }}
+        />
+      ))}
+      
       {/* Start/End screen */}
       {!gameActive && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-60 z-20">
@@ -829,7 +960,7 @@ const EmojiGame = () => {
             <p className="mb-6">
               {timeLeft === 0 
                 ? "Great job! Want to play again?" 
-                : "Pop as many emoji bubbles as you can in 30 seconds!"}
+                : "Pop as many emoji bubbles as you can in 120 seconds!"}
             </p>
             
             <button 
