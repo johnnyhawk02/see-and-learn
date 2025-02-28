@@ -111,6 +111,11 @@ class AlienShip {
         this.mesh.position.x = Math.cos(this.elapsedTime) * circleRadius;
         this.mesh.position.y = Math.sin(this.elapsedTime) * circleRadius;
         break;
+        
+      default:
+        // Default to straight movement if pattern is unknown
+        this.mesh.position.z += this.speed * delta;
+        break;
     }
     
     // Rotate the ship for visual interest

@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+
+
 
 const FlashcardApp = () => {
   // Card data with simple words and matching emojis
