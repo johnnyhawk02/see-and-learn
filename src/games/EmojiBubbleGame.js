@@ -20,10 +20,6 @@ const EmojiGame = () => {
   ], []);
   
   // Generate random parameters for bubbles - now with size categories
-
-  
-    // Function body...
-  
   const generateRandomBubble = useCallback((size = null, position = null, velocity = null, forceGrenade = false) => {
     const id = Math.random().toString(36).substring(2, 9);
     const emoji = emojis[Math.floor(Math.random() * emojis.length)];
@@ -89,7 +85,7 @@ const EmojiGame = () => {
       opacity: 1,
       isGrenade
     };
-}, [emojis, hasSpawnedGrenade]);
+  }, [emojis]);
   
   // Function to check for collisions between bubbles
   const checkCollisions = (bubbles) => {
