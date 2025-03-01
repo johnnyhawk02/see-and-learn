@@ -137,15 +137,20 @@ const WordCard = ({ item, isAnimating }) => {
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
-    canDrag: !isAnimating, // Disable dragging during animations
+    canDrag: !isAnimating,
   });
+
+  const handleTouchStart = (e) => {
+    e.preventDefault(); // Prevent default touch behavior
+  };
 
   return (
     <div
       ref={drag}
+      onTouchStart={handleTouchStart} // Add touch event handler
       className="p-8 rounded-lg shadow-md text-center text-4xl font-bold select-none"
       style={{ 
-        opacity: isDragging ? 0.7 : 1, // Slightly less transparent when dragging
+        opacity: isDragging ? 0.7 : 1,
         backgroundColor: 'white',
         cursor: isAnimating ? 'not-allowed' : (isDragging ? 'grabbing' : 'grab'),
         width: '320px',
