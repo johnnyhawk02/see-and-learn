@@ -154,7 +154,7 @@ const TargetArea = ({ targetCard, onDrop, isCorrectDrop, showFeedback }) => {
 };
 
 // Game complete component
-const GameComplete = ({ score, onRestart, onBackToMenu }) => {
+const GameComplete = ({ score, onRestart, onBackToMenu, onToggleSound, soundEnabled }) => {
   return (
     <div className="game-complete-overlay">
       <div className="completion-modal">
@@ -174,6 +174,12 @@ const GameComplete = ({ score, onRestart, onBackToMenu }) => {
             onClick={onBackToMenu}
           >
             Back to Menu
+          </button>
+          <button
+            className="control-button"
+            onClick={onToggleSound}
+          >
+            {soundEnabled ? '🔊 Sound On' : '🔇 Sound Off'}
           </button>
         </div>
       </div>
@@ -244,9 +250,9 @@ const CardMatchingGame = () => {
   const [cards, setCards] = useState([]);
   const [targetCard, setTargetCard] = useState(null);
   const [gameState, setGameState] = useState('playing'); // 'playing', 'levelComplete', 'completed'
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const [showFeedback, setShowFeedback] = useState(false);
   const [isCorrectDrop, setIsCorrectDrop] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
   
   // Sound effects
   const correctSound = useRef(null);
@@ -268,11 +274,11 @@ const CardMatchingGame = () => {
   
   // Play sound effect
   const playSound = useCallback((sound) => {
-    if (soundEnabled && sound.current) {
+    if (sound.current) {
       sound.current.currentTime = 0;
       sound.current.play().catch(e => console.error('Error playing sound:', e));
     }
-  }, [soundEnabled]);
+  }, []);
   
   // Update initializeLevel to select 4 random words
   const initializeLevel = useCallback((levelNum) => {
@@ -354,7 +360,7 @@ const CardMatchingGame = () => {
     // Just keep the function for the Card component
   }, []);
   
-  // Toggle sound
+  // Define toggleSound function
   const toggleSound = useCallback(() => {
     setSoundEnabled(prev => !prev);
   }, []);
@@ -389,6 +395,8 @@ const CardMatchingGame = () => {
           score={score}
           onRestart={startNewGame}
           onBackToMenu={() => navigate('/')}
+          onToggleSound={toggleSound}
+          soundEnabled={soundEnabled}
         />
       )}
     </div>
