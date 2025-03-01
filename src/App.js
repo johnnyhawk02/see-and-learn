@@ -383,6 +383,20 @@ const WordMatchingGame = () => {
 const App = () => {
   const Backend = getBackend();
 
+  useEffect(() => {
+    const preventDefault = (e) => {
+      e.preventDefault();
+    };
+
+    // Add touchmove event listener to prevent scrolling
+    window.addEventListener('touchmove', preventDefault, { passive: false });
+
+    return () => {
+      // Clean up the event listener on unmount
+      window.removeEventListener('touchmove', preventDefault);
+    };
+  }, []);
+
   return (
     <DndProvider backend={Backend} options={{ enableMouseEvents: true }}>
       <div className="h-screen w-screen bg-gray-50 overflow-hidden">
