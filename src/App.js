@@ -147,7 +147,8 @@ const WordCard = ({ item, isAnimating }) => {
   return (
     <div
       ref={drag}
-      onTouchStart={handleTouchStart} // Add touch event handler
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchStart} // Prevent scrolling during drag
       className="p-8 rounded-lg shadow-md text-center text-4xl font-bold select-none"
       style={{ 
         opacity: isDragging ? 0.7 : 1,
