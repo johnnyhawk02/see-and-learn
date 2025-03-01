@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
-const EmojiGameOld = () => {
+const EmojiGame = () => {
   const [bubbles, setBubbles] = useState([]);
   const [fallingEmojis, setFallingEmojis] = useState([]);
   const [confetti, setConfetti] = useState([]);
@@ -979,4 +979,4 @@ const EmojiGameOld = () => {
   );
 };
 
-export default EmojiGameOld;
+export default EmojiGame;

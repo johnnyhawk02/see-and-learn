@@ -236,16 +236,16 @@ const SpaceDefender = () => {
         </svg>
       </div>
       
-      {/* HUD */}
-      <div className="absolute top-4 left-4 text-white">
+      {/* HUD - moved to the right to avoid back button */}
+      <div className="absolute top-4 right-4 text-white text-right">
         <div>Score: {score}</div>
         <div>Health: {health}</div>
         <div>Wave: {wave}</div>
       </div>
       
-      {/* Game Start Screen */}
+      {/* Game Start Screen - added pointer-events-auto to ensure buttons work */}
       {gameStatus === 'start' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 text-white">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 text-white pointer-events-auto" style={{ zIndex: 9000 }}>
           <h1 className="text-4xl mb-6">Lunar Defender</h1>
           <p className="mb-4">Defend against alien invaders on the lunar surface!</p>
           <p className="mb-8">
@@ -263,9 +263,9 @@ const SpaceDefender = () => {
         </div>
       )}
       
-      {/* Pause Screen */}
+      {/* Pause Screen - added pointer-events-auto to ensure buttons work */}
       {gameStatus === 'paused' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-70 text-white">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-70 text-white pointer-events-auto" style={{ zIndex: 9000 }}>
           <h2 className="text-3xl mb-6">Game Paused</h2>
           <button 
             className="px-6 py-2 bg-blue-600 rounded hover:bg-blue-700"
@@ -276,9 +276,9 @@ const SpaceDefender = () => {
         </div>
       )}
       
-      {/* Game Over Screen */}
+      {/* Game Over Screen - added pointer-events-auto to ensure buttons work */}
       {gameStatus === 'gameover' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 text-white">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 text-white pointer-events-auto" style={{ zIndex: 9000 }}>
           <h2 className="text-3xl mb-2">Game Over</h2>
           <p className="text-xl mb-6">Final Score: {score}</p>
           <button 
