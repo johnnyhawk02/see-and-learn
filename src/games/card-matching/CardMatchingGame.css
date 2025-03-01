@@ -8,6 +8,7 @@
   padding: 20px;
   background-color: #f5f7fa;
   font-family: 'Arial', sans-serif;
+  overflow: hidden;
 }
 
 .vocabulary-game {
@@ -68,6 +69,7 @@
   gap: 20px;
   width: 100%;
   margin-bottom: 30px;
+  padding: 10px;
 }
 
 .card {
@@ -76,6 +78,7 @@
   height: 180px;
   perspective: 1000px;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .card-inner {
@@ -133,6 +136,7 @@
   justify-content: center;
   transition: all 0.3s;
   border: 2px dashed #3498db;
+  margin-top: 20px;
 }
 
 .target-instruction {
