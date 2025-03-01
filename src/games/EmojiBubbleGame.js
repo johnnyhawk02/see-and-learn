@@ -202,6 +202,9 @@ const Bubble = React.memo(({ position, size, emoji, color, isGrenade, onPop, id,
       velocityY += (Math.random() - 0.5) * 0.3 * settings.bounceEnergy;
       // Add spin based on velocity
       angularVelocity.current += Math.sign(velocityX) * Math.abs(velocityX) * 0.5;
+      // Update velocity.current with new values
+      velocity.current.x = velocityX;
+      velocity.current.y = velocityY;
     }
 
     if (posY < -bounds.y) {
@@ -209,6 +212,9 @@ const Bubble = React.memo(({ position, size, emoji, color, isGrenade, onPop, id,
       posY = -bounds.y;
       velocityX += (Math.random() - 0.5) * 0.3 * settings.bounceEnergy;
       angularVelocity.current += velocityX * 0.3;
+      // Update velocity.current with new values
+      velocity.current.x = velocityX;
+      velocity.current.y = velocityY;
     }
 
     if (posY > bounds.y) {
@@ -216,6 +222,9 @@ const Bubble = React.memo(({ position, size, emoji, color, isGrenade, onPop, id,
       posY = bounds.y;
       velocityX += (Math.random() - 0.5) * 0.3 * settings.bounceEnergy;
       angularVelocity.current += velocityX * 0.3;
+      // Update velocity.current with new values
+      velocity.current.x = velocityX;
+      velocity.current.y = velocityY;
     }
 
     // Check collisions with other bubbles
@@ -879,7 +888,7 @@ const GameScene = ({
     }, gameSettings.spawnRate);
 
     return () => clearInterval(interval);
-  }, [gameActive, bubbles.length, emojis, camera, settings]);
+  }, [gameActive, bubbles.length, emojis, camera, settings, gameSettings.grenadeChance, gameSettings.maxBubbles, gameSettings.spawnRate]);
 
   // Check for bubbles reaching the top
   useEffect(() => {
