@@ -1,12 +1,12 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom';
-import WordMatchingGame from './games/WordMatchingGame';
-import EmojiBubbleGame from './games/EmojiBubbleGame';
-import FunKeyboard from './games/FunKeyboard';
-import FlashCardGame from './games/FlashCardGame';
-import SpaceDefender from './games/SpaceDefender';
-import EmojiBubbleGameOld from './games/EmojiBubbleGameOld';
-import CardMatchingGame from './games/CardMatchingGame';
+import WordMatchingGame from './games/word-matching';
+import EmojiBubbleGame from './games/emoji-bubble';
+import FunKeyboard from './games/fun-keyboard';
+import FlashCardGame from './games/flash-card';
+import SpaceDefender from './games/space-defender';
+import EmojiBubbleGameOld from './games/emoji-bubble-old';
+import CardMatchingGame from './games/card-matching';
 
 // GameWrapper component that includes the back button
 const GameWrapper = ({ children }) => {
