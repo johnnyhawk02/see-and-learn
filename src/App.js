@@ -138,17 +138,15 @@ const WordCard = ({ item, isAnimating }) => {
       isDragging: monitor.isDragging(),
     }),
     canDrag: !isAnimating,
+    options: {
+      // Increased touch delay to trigger drag on touch devices
+      delayTouch: 200
+    }
   });
-
-  const handleTouchStart = (e) => {
-    e.preventDefault(); // Prevent default touch behavior
-  };
 
   return (
     <div
       ref={drag}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchStart} // Prevent scrolling during drag
       className="p-8 rounded-lg shadow-md text-center text-4xl font-bold select-none"
       style={{ 
         opacity: isDragging ? 0.7 : 1,
@@ -159,7 +157,8 @@ const WordCard = ({ item, isAnimating }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        border: isDragging ? '2px dashed #3b82f6' : (isAnimating ? '1px solid #d1d5db' : '1px solid #e5e7eb')
+        border: isDragging ? '2px dashed #3b82f6' : (isAnimating ? '1px solid #d1d5db' : '1px solid #e5e7eb'),
+        touchAction: 'none' // Prevent browser touch actions like scrolling
       }}
     >
       {item.word}
@@ -167,13 +166,11 @@ const WordCard = ({ item, isAnimating }) => {
   );
 };
 
-// Removed CustomDragLayer component since it's not being used
-
 // Picture Card Component
 const PictureCard = ({ item, onMatch, currentWordId, isAnimating }) => {
   const [{ isOver }, drop] = useDrop({
     accept: 'WORD',
-    canDrop: () => !isAnimating, // Correct way to prevent drops during animations
+    canDrop: () => !isAnimating,
     drop: (draggedItem) => {
       // Check if this picture's ID matches the current word ID
       const isCorrectMatch = item.id === currentWordId;
@@ -201,7 +198,8 @@ const PictureCard = ({ item, onMatch, currentWordId, isAnimating }) => {
         height: '220px',
         fontSize: '6rem',
         margin: '0 auto',
-        border: isOver ? '2px dashed #3b82f6' : '1px solid #e5e7eb'
+        border: isOver ? '2px dashed #3b82f6' : '1px solid #e5e7eb',
+        touchAction: 'none' // Prevent browser touch actions
       }}
     >
       {item.emoji}
@@ -209,9 +207,8 @@ const PictureCard = ({ item, onMatch, currentWordId, isAnimating }) => {
   );
 };
 
-  // Main Game Component
+// Main Game Component
 const WordMatchingGame = () => {
-  // Removed unused debug state
   const [displayPairs, setDisplayPairs] = useState([]);
   const [currentWord, setCurrentWord] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -384,22 +381,19 @@ const WordMatchingGame = () => {
 const App = () => {
   const Backend = getBackend();
 
-  useEffect(() => {
-    const preventDefault = (e) => {
-      e.preventDefault();
-    };
-
-    // Add touchmove event listener to prevent scrolling
-    window.addEventListener('touchmove', preventDefault, { passive: false });
-
-    return () => {
-      // Clean up the event listener on unmount
-      window.removeEventListener('touchmove', preventDefault);
-    };
-  }, []);
+  // Touch device options
+  const touchOptions = {
+    enableTouchEvents: true,
+    enableMouseEvents: true,
+    enableKeyboardEvents: true,
+    delayTouchStart: 100, // A slight delay helps distinguish between scroll and drag
+    ignoreContextMenu: true,
+    touchSlop: 20, // Added tolerance for slight finger movements
+    preventDefaultTouchstart: true
+  };
 
   return (
-    <DndProvider backend={Backend} options={{ enableMouseEvents: true }}>
+    <DndProvider backend={Backend} options={touchOptions}>
       <div className="h-screen w-screen bg-gray-50 overflow-hidden">
         <WordMatchingGame />
       </div>
