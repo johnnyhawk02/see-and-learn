@@ -1,19 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
-// Data for the game
+// Data for the game - using the provided vocabulary words
 const allPairs = [
-  { id: 1, word: "cat", emoji: "🐱" },
-  { id: 2, word: "dog", emoji: "🐶" },
-  { id: 3, word: "sun", emoji: "☀️" },
-  { id: 4, word: "apple", emoji: "🍎" },
-  { id: 5, word: "house", emoji: "🏠" },
-  { id: 6, word: "train", emoji: "🚂" },
-  { id: 7, word: "plane", emoji: "✈️" },
-  { id: 8, word: "snake", emoji: "🐍" },
-  { id: 9, word: "rainbow", emoji: "🌈" },
-  { id: 10, word: "football", emoji: "🏈" },
-  { id: 11, word: "snowman", emoji: "☃️" },
-  { id: 12, word: "pancake", emoji: "🥞" }
+  { id: 1, word: "bed", emoji: "🛏️" },
+  { id: 2, word: "hat", emoji: "🧢" },
+  { id: 3, word: "pig", emoji: "🐷" },
+  { id: 4, word: "cup", emoji: "🥤" },
+  { id: 5, word: "car", emoji: "🚗" },
+  { id: 6, word: "bag", emoji: "👜" },
+  { id: 7, word: "doll", emoji: "🧸" },
+  { id: 8, word: "fish", emoji: "🐟" },
+  { id: 9, word: "cat", emoji: "🐱" },
+  { id: 10, word: "ball", emoji: "⚽" },
+  { id: 11, word: "dog", emoji: "🐶" },
+  { id: 12, word: "keys", emoji: "🔑" },
+  { id: 13, word: "table", emoji: "🪑" }, // Fixed table emoji
+  { id: 14, word: "book", emoji: "📚" },
+  { id: 15, word: "daddy", emoji: "👨" },
+  { id: 16, word: "mummy", emoji: "👩" },
+  { id: 17, word: "apple", emoji: "🍎" },
+  { id: 18, word: "baby", emoji: "👶" },
+  { id: 19, word: "cow", emoji: "🐄" },
+  { id: 20, word: "spoon", emoji: "🥄" },
+  { id: 21, word: "banana", emoji: "🍌" },
+  { id: 22, word: "duck", emoji: "🦆" },
+  { id: 23, word: "socks", emoji: "🧦" },
+  { id: 24, word: "bath", emoji: "🛁" },
+  { id: 25, word: "chair", emoji: "🪑" },
+  { id: 26, word: "brush", emoji: "🪥" },
+  { id: 27, word: "shoes", emoji: "👟" },
+  { id: 28, word: "flower", emoji: "🌸" },
+  { id: 29, word: "bear", emoji: "🐻" },
+  { id: 30, word: "drink", emoji: "🥛" },
+  { id: 31, word: "sheep", emoji: "🐑" },
+  { id: 32, word: "nose", emoji: "👃" },
+  { id: 33, word: "wash", emoji: "🧼" },
+  { id: 34, word: "coat", emoji: "🧥" },
+  { id: 35, word: "eating", emoji: "🍽️" },
+  { id: 36, word: "biscuit", emoji: "🍪" },
+  { id: 37, word: "eyes", emoji: "👁️" },
+  { id: 38, word: "sitting", emoji: "💺" },
+  { id: 39, word: "blocks", emoji: "🧱" },
+  { id: 40, word: "mouth", emoji: "👄" },
+  { id: 41, word: "sleeping", emoji: "💤" },
+  { id: 42, word: "bird", emoji: "🐦" },
+  { id: 43, word: "hair", emoji: "💇" },
+  { id: 44, word: "crying", emoji: "😢" },
+  { id: 45, word: "phone", emoji: "📱" },
+  { id: 46, word: "walk", emoji: "🚶" },
+  { id: 47, word: "drinking", emoji: "🥤" },
+  { id: 48, word: "brushing", emoji: "🪥" }
 ];
 
 // Confetti Component - only shown for correct answers
@@ -121,7 +157,7 @@ const IncorrectFlash = ({ active }) => {
 };
 
 // Word Card Component - Now bigger and at the top
-const WordCard = ({ item }) => {
+const WordCard = ({ item, onSpeak }) => {
   return (
     <div
       className="p-8 rounded-lg shadow-lg text-center font-bold select-none"
@@ -138,8 +174,10 @@ const WordCard = ({ item }) => {
         position: 'relative',
         overflow: 'hidden',
         fontSize: '5rem', // Bigger font size
-        margin: '0 auto'
+        margin: '0 auto',
+        cursor: 'pointer'
       }}
+      onClick={() => onSpeak(item.word)}
     >
       {/* Decorative elements */}
       <div 
@@ -260,82 +298,44 @@ const WordMatchingGame = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [showIncorrect, setShowIncorrect] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
-  
-  // Function to speak the word using the Web Speech API with improved voice selection
+  const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [totalAttempts, setTotalAttempts] = useState(0);
+
+  // Function to speak the word using the Web Speech API
   const speakWord = (word) => {
-    if ('speechSynthesis' in window) {
-      // Create a new speech synthesis utterance
-      const utterance = new SpeechSynthesisUtterance(word);
+    const audioFilePath = `/sounds/vocabulary/${word}.wav`;
+    const audio = new Audio(audioFilePath);
+    audio.play().catch(error => {
+      console.error("Error playing audio:", error);
       
-      // Get all available voices
-      const voices = window.speechSynthesis.getVoices();
-      
-      // Try to find a good English voice - prioritize these voices in order:
-      // 1. Google UK English
-      // 2. Any UK English voice
-      // 3. Any English voice
-      // 4. Default to first available voice if none of the above are found
-      
-      // Look for Google UK English voice first (known for clarity)
-      let selectedVoice = voices.find(voice => 
-        voice.name.includes('Google UK English') || 
-        voice.name.includes('British English')
-      );
-      
-      // If not found, try any UK English voice
-      if (!selectedVoice) {
-        selectedVoice = voices.find(voice => 
-          voice.lang.includes('en-GB') || 
-          voice.lang.includes('en_GB')
-        );
+      // Fallback to Web Speech API if audio file fails
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(word);
+        utterance.rate = 0.8; // Slightly slower for clarity
+        window.speechSynthesis.speak(utterance);
       }
-      
-      // If still not found, try any English voice
-      if (!selectedVoice) {
-        selectedVoice = voices.find(voice => 
-          voice.lang.startsWith('en')
-        );
-      }
-      
-      // Apply the selected voice if found
-      if (selectedVoice) {
-        utterance.voice = selectedVoice;
-        console.log(`Using voice: ${selectedVoice.name}`);
-      }
-      
-      // Configure the voice for better clarity
-      utterance.rate = 0.8; // Slightly slower for clarity
-      utterance.pitch = 1.1; // Slightly higher pitch for emphasis
-      utterance.volume = 1.0; // Full volume
-      
-      // Speak the word
-      window.speechSynthesis.speak(utterance);
-      console.log(`Speaking word: "${word}"`);
-    } else {
-      console.warn('Speech synthesis not supported in this browser');
-    }
+    });
   };
 
-  // Initialize a new round
-  const setupNewRound = () => {
-    // Ensure any visual effects are cleared
+  // Initialize a new round with 4 pictures - using useCallback to fix the dependency issue
+  const setupNewRound = useCallback(() => {
     setShowConfetti(false);
     setShowIncorrect(false);
     setIsAnimating(false);
-    
+
     // Shuffle and pick 4 random pairs
     const shuffled = [...allPairs].sort(() => 0.5 - Math.random());
-    const selectedPairs = shuffled.slice(0, 4);
+    const selectedPairs = shuffled.slice(0, 4); // Always take 4 pairs
     setDisplayPairs(selectedPairs);
-    
-    // Pick one of these 4 as the current word to match
+
+    // Pick one of these as the current word to match
     const randomIndex = Math.floor(Math.random() * 4);
     const selectedWord = selectedPairs[randomIndex];
     setCurrentWord(selectedWord);
-    
+
     // Speak the word
     speakWord(selectedWord.word);
-    
+
     // Log detailed debugging info about the round setup
     console.log("==== NEW ROUND SETUP ====");
     console.log(`Selected word: "${selectedWord.word}" (ID: ${selectedWord.id})`);
@@ -343,39 +343,26 @@ const WordMatchingGame = () => {
     selectedPairs.forEach(pair => {
       console.log(`- ${pair.emoji} (ID: ${pair.id}, Word: "${pair.word}")`);
     });
-  };
-
-  // Initialize voices and first round
-  useEffect(() => {
-    // Load voices on component mount
-    // This is needed because voices might not be immediately available in some browsers
-    if ('speechSynthesis' in window) {
-      // Some browsers (like Chrome) load voices asynchronously
-      if (window.speechSynthesis.getVoices().length === 0) {
-        window.speechSynthesis.onvoiceschanged = () => {
-          console.log("Voices loaded:", window.speechSynthesis.getVoices().length);
-        };
-      } else {
-        console.log("Voices immediately available:", window.speechSynthesis.getVoices().length);
-      }
-    }
-    
-    setupNewRound();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Initialize the first round
+  useEffect(() => {
+    setupNewRound();
+  }, [setupNewRound]); // Fixed dependency array
 
   const handleSelection = (isCorrect) => {
     if (isAnimating) {
       console.log("Animation already in progress, ignoring selection");
       return;
     }
-    
+
     setIsAnimating(true);
-    
+    setTotalAttempts(prev => prev + 1);
+
     if (isCorrect) {
-      // For correct matches, show confetti and move to next round
+      setCorrectAnswers(prev => prev + 1);
       setShowConfetti(true);
-      
+
       // After a short delay, hide confetti and show next set of pictures
       setTimeout(() => {
         setShowConfetti(false);
@@ -383,35 +370,48 @@ const WordMatchingGame = () => {
         setupNewRound();
       }, 2000);
     } else {
-      // Flash red for incorrect selections
       setShowIncorrect(true);
-      
-      // Say the word again when selection is incorrect
       setTimeout(() => {
-        // Speak the word again for incorrect selections
         if (currentWord) {
           speakWord(currentWord.word);
           console.log(`Repeating word after incorrect selection: "${currentWord.word}"`);
         }
-        
         setShowIncorrect(false);
         setIsAnimating(false);
       }, 500);
     }
   };
 
+  // Calculate accuracy percentage
+  const accuracy = totalAttempts > 0 
+    ? Math.round((correctAnswers / totalAttempts) * 100) 
+    : 0;
+
   return (
     <div className="flex flex-col justify-center items-center h-screen bg-gray-50 p-4">
       <Confetti active={showConfetti} />
       <IncorrectFlash active={showIncorrect} />
       
-      {/* Word Card - Now at the top */}
-      <div className="w-full max-w-4xl mb-10">
-        {currentWord && <WordCard item={currentWord} />}
+      {/* Game title */}
+      <h1 className="text-3xl font-bold text-blue-700 mb-4">Vocabulary Matching Game</h1>
+      
+      {/* Score display */}
+      <div className="flex justify-between w-full max-w-4xl mb-2">
+        <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-medium">
+          Score: {correctAnswers}
+        </div>
+        <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-medium">
+          Accuracy: {accuracy}%
+        </div>
       </div>
       
-      {/* Pictures Grid - Responsive and fills more of the screen */}
-      <div className="grid grid-cols-2 gap-8 w-full max-w-4xl">
+      {/* Word Card - Now at the top */}
+      <div className="w-full max-w-4xl mb-8">
+        {currentWord && <WordCard item={currentWord} onSpeak={speakWord} />}
+      </div>
+      
+      {/* Pictures Grid - Always 4 pictures */}
+      <div className="grid grid-cols-2 gap-4 sm:gap-6 w-full max-w-4xl">
         {displayPairs.map(item => (
           <PictureCard 
             key={item.id} 
