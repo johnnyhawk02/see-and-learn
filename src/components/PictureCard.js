@@ -7,16 +7,18 @@ const PictureCard = ({ item, onSelect, currentWordId, isAnimating }) => {
   const handleClick = () => {
     if (isAnimating) return;
     
-    // Get the element's position for confetti origin
-    const element = document.getElementById(`picture-card-${item.id}`);
-    const elementRect = element ? element.getBoundingClientRect() : null;
-    
     // Check if this picture's ID matches the current word ID
-    const isCorrectMatch = item.id === currentWordId;
+    // Use optional chaining to avoid errors with undefined values
+    const isCorrectMatch = item?.id === currentWordId;
     
-    // Call the match handler with the result and position info
-    onSelect(isCorrectMatch, elementRect);
+    // Call the match handler with the result and item data
+    onSelect(isCorrectMatch, null, item);
   };
+  
+  // Add error handling to ensure item is properly defined
+  if (!item) {
+    return <div className="rounded-lg bg-gray-200 h-32 w-full"></div>;
+  }
   
   return (
     <div

@@ -2,6 +2,26 @@ import React from 'react';
 
 // Word Card Component
 const WordCard = ({ item, onSpeak }) => {
+  // Add error handling
+  if (!item || !item.word) {
+    return (
+      <div 
+        className="p-8 rounded-lg shadow-lg text-center font-bold select-none bg-gray-200"
+        style={{ 
+          width: '100%',
+          height: '150px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: '12px',
+          border: '3px solid #e5e7eb'
+        }}
+      >
+        <div style={{ color: '#9CA3AF', fontSize: '2rem' }}>Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="p-8 rounded-lg shadow-lg text-center font-bold select-none"

@@ -11,7 +11,7 @@ const Confetti = ({ active, matchPosition }) => {
   useEffect(() => {
     // Only generate and animate confetti when active is true (correct match)
     if (active && matchPosition) {
-      console.log("Showing confetti for correct match");
+      console.log("Showing confetti for correct match", matchPosition);
       
       // Get origin coordinates based on the match position
       const originX = matchPosition.x || window.innerWidth / 2;
@@ -91,7 +91,7 @@ const Confetti = ({ active, matchPosition }) => {
       setPieces([]);
       setEmojis([]);
     }
-  }, [active, matchPosition]);
+  }, [active, matchPosition, celebrationEmojis]);
   
   if (!active) return null;
   
