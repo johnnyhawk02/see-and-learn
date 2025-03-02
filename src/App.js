@@ -346,38 +346,35 @@ const WordMatchingGame = () => {
     setIsAnimating(true);
     setTotalAttempts(prev => prev + 1);
 
+    const playSound = (soundPath, callback) => {
+      const audio = new Audio(soundPath);
+      audio.play().catch(error => {
+        console.error("Error playing sound:", error);
+      });
+      audio.onended = callback; // Call the callback when the sound finishes
+    };
+
     if (isCorrect) {
       setCorrectAnswers(prev => prev + 1);
       setShowConfetti(true);
 
-      // Play the clapping sound
-      const clappingAudio = new Audio('/sounds/clapping.mp3');
-      clappingAudio.play().catch(error => {
-        console.error("Error playing clapping sound:", error);
-      });
-
-      // After a short delay, hide confetti and show next set of pictures
-      setTimeout(() => {
+      // Play the clapping sound and wait for it to finish
+      playSound('/sounds/clapping.mp3', () => {
         setShowConfetti(false);
         setIsAnimating(false);
         setupNewRound();
-      }, 2000);
-    } else {
-      // Play the wrong sound
-      const wrongAudio = new Audio('/sounds/wrong.wav');
-      wrongAudio.play().catch(error => {
-        console.error("Error playing wrong sound:", error);
       });
-
-      setShowIncorrect(true);
-      setTimeout(() => {
+    } else {
+      // Play the wrong sound and wait for it to finish
+      playSound('/sounds/wrong.wav', () => {
         if (currentWord) {
           speakWord(currentWord.word);
           console.log(`Repeating word after incorrect selection: "${currentWord.word}"`);
         }
         setShowIncorrect(false);
         setIsAnimating(false);
-      }, 500);
+      });
+      setShowIncorrect(true);
     }
   };
 
