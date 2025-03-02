@@ -23,16 +23,29 @@ const WordMatchingGame = () => {
     });
   };
 
+  // Fisher-Yates shuffle algorithm for better randomization
+  const shuffleArray = (array) => {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+  };
+
   // Initialize a new round with 4 pictures
   const setupNewRound = useCallback(() => {
     setShowConfetti(false);
     setShowIncorrect(false);
     setIsAnimating(false);
 
-    // Shuffle and pick 4 random pairs
-    const shuffled = [...allPairs].sort(() => 0.5 - Math.random());
-    const selectedPairs = shuffled.slice(0, 4); // Always take 4 pairs
-    setDisplayPairs(selectedPairs);
+    // First shuffle all pairs and select 4 random pairs
+    const shuffledAllPairs = shuffleArray(allPairs);
+    const selectedPairs = shuffledAllPairs.slice(0, 4); // Take first 4 pairs
+    
+    // Then shuffle the display order of these 4 pairs
+    const shuffledDisplayPairs = shuffleArray(selectedPairs);
+    setDisplayPairs(shuffledDisplayPairs);
 
     // Pick one of these as the current word to match
     const randomIndex = Math.floor(Math.random() * 4);
@@ -46,7 +59,7 @@ const WordMatchingGame = () => {
     console.log("==== NEW ROUND SETUP ====");
     console.log(`Selected word: "${selectedWord.word}" (ID: ${selectedWord.id})`);
     console.log("All available pictures:");
-    selectedPairs.forEach(pair => {
+    shuffledDisplayPairs.forEach(pair => {
       console.log(`- ${pair.image} (ID: ${pair.id}, Word: "${pair.word}")`);
     });
   }, []);
@@ -56,7 +69,9 @@ const WordMatchingGame = () => {
     setupNewRound();
   }, [setupNewRound]);
 
-  const handleSelection = (isCorrect) => {
+  const [matchPosition, setMatchPosition] = useState(null);
+
+  const handleSelection = (isCorrect, elementRect) => {
     if (isAnimating) {
       console.log("Animation already in progress, ignoring selection");
       return;
@@ -64,6 +79,14 @@ const WordMatchingGame = () => {
 
     setIsAnimating(true);
     setTotalAttempts(prev => prev + 1);
+
+    // If correct, store the position of the matched card for confetti origin
+    if (isCorrect && elementRect) {
+      // Calculate the center of the element
+      const centerX = elementRect.left + elementRect.width / 2;
+      const centerY = elementRect.top + elementRect.height / 2;
+      setMatchPosition({ x: centerX, y: centerY });
+    }
 
     const playSound = (soundPath, callback) => {
       const audio = new Audio(soundPath);
@@ -104,7 +127,7 @@ const WordMatchingGame = () => {
 
   return (
     <div className="flex flex-col justify-center items-center h-full w-full bg-gray-50 p-4">
-      <Confetti active={showConfetti} />
+      <Confetti active={showConfetti} matchPosition={matchPosition} />
       <IncorrectFlash active={showIncorrect} />
       
       {/* Word Card - Now at the top */}

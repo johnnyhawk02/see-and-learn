@@ -7,15 +7,20 @@ const PictureCard = ({ item, onSelect, currentWordId, isAnimating }) => {
   const handleClick = () => {
     if (isAnimating) return;
     
+    // Get the element's position for confetti origin
+    const element = document.getElementById(`picture-card-${item.id}`);
+    const elementRect = element ? element.getBoundingClientRect() : null;
+    
     // Check if this picture's ID matches the current word ID
     const isCorrectMatch = item.id === currentWordId;
     
-    // Call the match handler with the result
-    onSelect(isCorrectMatch);
+    // Call the match handler with the result and position info
+    onSelect(isCorrectMatch, elementRect);
   };
   
   return (
     <div
+      id={`picture-card-${item.id}`}
       className="rounded-lg flex justify-center items-center cursor-pointer"
       style={{ 
         backgroundColor: isPressed ? '#f0f9ff' : 'white',
