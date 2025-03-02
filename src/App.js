@@ -234,7 +234,7 @@ const PictureCard = ({ item, isDragging, onDragStart, onDragEnd }) => {
     }
   };
   
-      // Touch event handlers for iPad with visible ghost image
+  // Touch event handlers for iPad with visible ghost image
   const handleTouchStart = (e) => {
     const touch = e.touches[0];
     const target = e.currentTarget;
@@ -283,7 +283,6 @@ const PictureCard = ({ item, isDragging, onDragStart, onDragEnd }) => {
     e.preventDefault(); // Prevent scrolling while dragging
     
     const touch = e.touches[0];
-    const target = e.currentTarget;
     
     // Update ghost position if it exists
     const ghost = document.getElementById('touch-drag-ghost');
@@ -414,111 +413,9 @@ const WordImageDragGame = () => {
     });
   };
 
-  // Initialize a new round with 4 pictures but only 1 word
-  const setupNewRound = useCallback(() => {
-    setShowConfetti(false);
-    setShowIncorrect(false);
-    setIsAnimating(false);
-    setDraggedItemId(null);
-    setHoveredWordId(null);
-
-    // Shuffle and pick 4 random pairs
-    const shuffled = [...allPairs].sort(() => 0.5 - Math.random());
-    const selectedPairs = shuffled.slice(0, 4);
-    
-    // Pick one of these as the target word
-    const randomIndex = Math.floor(Math.random() * 4);
-    const selectedWord = selectedPairs[randomIndex];
-    
-    // Set the display pairs (images) and the single word to match
-    setDisplayPairs(selectedPairs);
-    setDisplayWords([selectedWord]);
-    
-    // Speak the instructions and the selected word
-    setTimeout(() => {
-      const audio = new Audio('/sounds/match-drag.mp3'); // Create an instruction audio
-      audio.play().catch(error => {
-        console.error("Error playing instructions:", error);
-      });
-      
-      // Speak the target word after a short delay
-      setTimeout(() => {
-        if (selectedWord) {
-          speakWord(selectedWord.word);
-        }
-      }, 1000);
-    }, 500);
-  }, []);
-
-  // Initialize the first round
-  useEffect(() => {
-    setupNewRound();
-    
-    // Add global touch event handling
-    window.handleDropForTouch = (draggedId) => {
-      // With one word, always pass that word's ID
-      if (displayWords.length > 0) {
-        handleDrop(draggedId, displayWords[0].id);
-      }
-    };
-    
-    // Add CSS for dragging classes
-    const style = document.createElement('style');
-    style.textContent = `
-      .dragging { opacity: 0.5; }
-      .drag-over { 
-        background-color: #f0f9ff !important;
-        border: 3px dashed #3b82f6 !important;
-      }
-      #touch-drag-ghost {
-        width: 100px !important;
-        height: 100px !important;
-        border-radius: 8px !important;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
-        background-size: cover !important;
-        background-position: center !important;
-      }
-    `;
-    document.head.appendChild(style);
-    
-    return () => {
-      // Clean up
-      delete window.handleDropForTouch;
-      document.head.removeChild(style);
-    };
-  }, [setupNewRound]);
-  
-  // Update the ref whenever handleDrop changes
-  useEffect(() => {
-    handleDropRef.current = handleDrop;
-    window.handleDropForTouch = (draggedId) => {
-      if (displayWords.length > 0) {
-        handleDrop(draggedId, displayWords[0].id);
-      }
-    };
-    
-    // Clean up any lingering ghost elements when the component updates
-    return () => {
-      const ghost = document.getElementById('touch-drag-ghost');
-      if (ghost) {
-        document.body.removeChild(ghost);
-      }
-    };
-  }, [displayPairs, displayWords, isAnimating]);
-
-  // Handle drag start
-  const handleDragStart = (itemId) => {
-    setDraggedItemId(itemId);
-  };
-  
-  // Handle drag end
-  const handleDragEnd = () => {
-    setDraggedItemId(null);
-    setHoveredWordId(null);
-  };
-  
-  // Handle the drop event
-  function handleDrop(imageId, wordId) {
+  // Handle the drop event - defined before setupNewRound to avoid dependency issues
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleDrop = (imageId, wordId) => {
     if (isAnimating) {
       return;
     }
@@ -559,14 +456,108 @@ const WordImageDragGame = () => {
         setShowIncorrect(false);
         setIsAnimating(false);
         
-        // Speak the correct word for the image that was dragged
-        if (imageItem) {
-          speakWord(imageItem.word);
+        // Speak the correct target word again after an incorrect answer
+        if (wordItem) {
+          speakWord(wordItem.word);
         }
       });
       setShowIncorrect(true);
     }
-  }
+  };
+
+  // Initialize a new round with 4 pictures but only 1 word
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const setupNewRound = () => {
+    setShowConfetti(false);
+    setShowIncorrect(false);
+    setIsAnimating(false);
+    setDraggedItemId(null);
+    setHoveredWordId(null);
+
+    // Shuffle and pick 4 random pairs
+    const shuffled = [...allPairs].sort(() => 0.5 - Math.random());
+    const selectedPairs = shuffled.slice(0, 4);
+    
+    // Pick one of these as the target word
+    const randomIndex = Math.floor(Math.random() * 4);
+    const selectedWord = selectedPairs[randomIndex];
+    
+    // Set the display pairs (images) and the single word to match
+    setDisplayPairs(selectedPairs);
+    setDisplayWords([selectedWord]);
+    
+    // Speak the instructions and the selected word
+    setTimeout(() => {
+      const audio = new Audio('/sounds/match-drag.mp3'); // Create an instruction audio
+      audio.play().catch(error => {
+        console.error("Error playing instructions:", error);
+      });
+      
+      // Speak the target word after a short delay
+      setTimeout(() => {
+        if (selectedWord) {
+          speakWord(selectedWord.word);
+        }
+      }, 1000);
+    }, 500);
+  };
+
+  // Initialize the game on first render
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    // Set up the reference to handleDrop for global access
+    handleDropRef.current = handleDrop;
+    window.handleDropForTouch = (draggedId) => {
+      if (displayWords.length > 0) {
+        handleDrop(draggedId, displayWords[0].id);
+      }
+    };
+    
+    // Add CSS for dragging classes
+    const style = document.createElement('style');
+    style.textContent = `
+      .dragging { opacity: 0.5; }
+      .drag-over { 
+        background-color: #f0f9ff !important;
+        border: 3px dashed #3b82f6 !important;
+      }
+      #touch-drag-ghost {
+        width: 100px !important;
+        height: 100px !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important;
+        background-size: cover !important;
+        background-position: center !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Start the first round
+    setupNewRound();
+    
+    return () => {
+      // Clean up
+      delete window.handleDropForTouch;
+      document.head.removeChild(style);
+      
+      // Remove any lingering ghost elements
+      const ghost = document.getElementById('touch-drag-ghost');
+      if (ghost) {
+        document.body.removeChild(ghost);
+      }
+    };
+  }, []);
+
+  // Handle drag start
+  const handleDragStart = (itemId) => {
+    setDraggedItemId(itemId);
+  };
+  
+  // Handle drag end
+  const handleDragEnd = () => {
+    setDraggedItemId(null);
+    setHoveredWordId(null);
+  };
 
   // Calculate accuracy percentage
   const accuracy = totalAttempts > 0 
