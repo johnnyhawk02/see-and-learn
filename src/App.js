@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // Data for the game - using image paths directly from the location
 const allPairs = [
@@ -156,31 +156,18 @@ const IncorrectFlash = ({ active }) => {
 };
 
 // Word Card Component (Drop Target)
-const WordCard = ({ item, onDrop, onSpeak, isActive, isHovering }) => {
-  // Handle drop functionality
-  const handleDragOver = (e) => {
-    e.preventDefault(); // Allow drop
-  };
-  
-  const handleDrop = (e) => {
-    e.preventDefault();
-    const draggedItemId = e.dataTransfer.getData('text/plain');
-    onDrop(parseInt(draggedItemId, 10), item.id);
-  };
-  
+const WordCard = ({ item, checkMatch, onSpeak, isActive }) => {
   return (
     <div
-      className="p-8 rounded-lg shadow-lg text-center font-bold select-none"
+      className="word-drop-target p-8 rounded-lg shadow-lg text-center font-bold select-none"
       style={{ 
-        background: isHovering ? '#f0f9ff' : 'linear-gradient(to bottom, #ffffff, #f9fafb)',
+        background: 'linear-gradient(to bottom, #ffffff, #f9fafb)',
         width: '100%',
         height: '180px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        boxShadow: isHovering 
-          ? '0 0 0 3px #3b82f6, 0 10px 15px -3px rgba(0, 0, 0, 0.1)' 
-          : '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
         color: 'black',
         position: 'relative',
         overflow: 'hidden',
@@ -191,8 +178,7 @@ const WordCard = ({ item, onDrop, onSpeak, isActive, isHovering }) => {
         transition: 'all 0.2s ease-out',
       }}
       onClick={() => onSpeak(item.word)}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
+      data-word-id={item.id}
     >
       {/* Word text */}
       <div style={{ position: 'relative', zIndex: 1 }}>
@@ -203,144 +189,36 @@ const WordCard = ({ item, onDrop, onSpeak, isActive, isHovering }) => {
 };
 
 // Picture Card Component (Draggable)
-const PictureCard = ({ item, isDragging, onDragStart, onDragEnd }) => {
-  
+const PictureCard = ({ item, isDragging, onDragStart, onDragEnd, onItemSelected }) => {
+  // For standard desktop drag events
   const handleDragStart = (e) => {
-    // Set the data being dragged - the item ID
     e.dataTransfer.setData('text/plain', item.id.toString());
     e.dataTransfer.effectAllowed = 'move';
-    
-    // Simply use the default drag image behavior
-    // This is more reliable across browsers than trying to create a custom one
-    
-    // Notify parent component
     onDragStart(item.id);
-    
-    // For iPad/touch devices, this helps maintain the dragging state
-    if (e.target.classList) {
-      setTimeout(() => {
-        e.target.classList.add('dragging');
-      }, 0);
-    }
   };
   
-  const handleDragEnd = (e) => {
-    // Notify parent component
+  const handleDragEnd = () => {
     onDragEnd();
-    
-    // Remove dragging class
-    if (e.target.classList) {
-      e.target.classList.remove('dragging');
-    }
   };
   
-  // Touch event handlers for iPad with visible ghost image
+  // For iPad touch events - optimized for direct selection
   const handleTouchStart = (e) => {
-    const touch = e.touches[0];
-    const target = e.currentTarget;
+    // Store the item ID
+    e.currentTarget.dataset.itemId = item.id;
     
-    // Store the starting position
-    target.dataset.touchStartX = touch.clientX;
-    target.dataset.touchStartY = touch.clientY;
-    
-    // Store the item ID in the element's data attribute
-    target.dataset.itemId = item.id;
-    
-    // Visual feedback that touch has started
+    // Visual feedback
     onDragStart(item.id);
-    
-    // Create a visible ghost for touch dragging
-    // First remove any existing ghost
-    const existingGhost = document.getElementById('touch-drag-ghost');
-    if (existingGhost) {
-      document.body.removeChild(existingGhost);
-    }
-    
-    // Create a new ghost element
-    const ghostEl = document.createElement('div');
-    ghostEl.id = 'touch-drag-ghost';
-    ghostEl.innerHTML = `<img src="${item.image}" alt="${item.word}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">`;
-    ghostEl.style.cssText = `
-      position: fixed;
-      z-index: 9999;
-      width: 100px;
-      height: 100px;
-      left: ${touch.clientX - 50}px;
-      top: ${touch.clientY - 50}px;
-      background-color: white;
-      border-radius: 8px;
-      border: 2px solid #3b82f6;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-      opacity: 0.9;
-      transform: scale(0.9);
-      pointer-events: none;
-    `;
-    
-    document.body.appendChild(ghostEl);
   };
   
-  const handleTouchMove = (e) => {
-    e.preventDefault(); // Prevent scrolling while dragging
-    
-    const touch = e.touches[0];
-    
-    // Update ghost position if it exists
-    const ghost = document.getElementById('touch-drag-ghost');
-    if (ghost) {
-      ghost.style.left = (touch.clientX - 50) + 'px';
-      ghost.style.top = (touch.clientY - 50) + 'px';
-    }
-    
-    // Get the touch element at the current position
-    const touchElement = document.elementFromPoint(touch.clientX, touch.clientY);
-    
-    // If we're over a word card, highlight it
-    const wordCards = document.querySelectorAll('.word-drop-target');
-    wordCards.forEach(card => {
-      if (card.contains(touchElement)) {
-        card.classList.add('drag-over');
-      } else {
-        card.classList.remove('drag-over');
-      }
-    });
-  };
-  
-  const handleTouchEnd = (e) => {
-    const target = e.currentTarget;
-    const itemId = parseInt(target.dataset.itemId, 10);
-    
-    // Get the final touch position (using the last recorded position)
-    const touch = e.changedTouches[0];
-    
-    // Remove the ghost element
-    const ghost = document.getElementById('touch-drag-ghost');
-    if (ghost) {
-      document.body.removeChild(ghost);
-    }
-    
-    // Find what element is under the final touch position
-    const dropElement = document.elementFromPoint(touch.clientX, touch.clientY);
-    
-    // Check if it's a word card
-    const wordCard = dropElement ? dropElement.closest('.word-drop-target') : null;
-    
-    if (wordCard) {
-      // With one word, always pass that word's ID from the global state
-      if (window.handleDropForTouch) {
-        window.handleDropForTouch(itemId);
-      }
-      
-      // Remove highlighting
-      wordCard.classList.remove('drag-over');
-    }
-    
-    // End the drag state
+  const handleTouchEnd = () => {
+    // Simple selection model for iPad - just select the item
+    onItemSelected(item.id);
     onDragEnd();
   };
   
   return (
     <div
-      className={`rounded-lg flex justify-center items-center cursor-grab ${isDragging ? 'opacity-50' : ''}`}
+      className={`rounded-lg flex justify-center items-center ${isDragging ? 'opacity-50' : ''} ${isDragging ? 'selected-item' : ''}`}
       style={{ 
         backgroundColor: 'white',
         width: '100%',
@@ -348,18 +226,19 @@ const PictureCard = ({ item, isDragging, onDragStart, onDragEnd }) => {
         overflow: 'hidden',
         paddingTop: '56.25%', // Maintain 16:9 aspect ratio
         margin: '0 auto',
-        border: '3px solid #e5e7eb',
-        transition: 'all 0.1s ease-out',
+        border: isDragging ? '3px solid #3b82f6' : '3px solid #e5e7eb',
+        transition: 'all 0.2s ease-out',
         boxShadow: '0 6px 12px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.1)',
-        touchAction: 'none', // Important for touch drag on iPads
+        touchAction: 'none', // Important for touch events
         userSelect: 'none',
+        cursor: 'pointer',
       }}
       draggable="true"
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      data-item-id={item.id}
     >
       <div style={{ 
         position: 'absolute', 
@@ -392,17 +271,14 @@ const PictureCard = ({ item, isDragging, onDragStart, onDragEnd }) => {
 // Main Game Component
 const WordImageDragGame = () => {
   const [displayPairs, setDisplayPairs] = useState([]);
-  const [displayWords, setDisplayWords] = useState([]);
+  const [displayWord, setDisplayWord] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showIncorrect, setShowIncorrect] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [totalAttempts, setTotalAttempts] = useState(0);
-  const [draggedItemId, setDraggedItemId] = useState(null);
-  const [hoveredWordId, setHoveredWordId] = useState(null);
-  
-  // Create a ref to store the handleDrop function that will be accessible globally
-  const handleDropRef = useRef(null);
+  const [selectedItemId, setSelectedItemId] = useState(null);
+  const [isIPad, setIsIPad] = useState(false);
   
   // Function to speak the word using audio files
   const speakWord = (word) => {
@@ -413,22 +289,87 @@ const WordImageDragGame = () => {
     });
   };
 
-  // Handle the drop event - defined before setupNewRound to avoid dependency issues
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleDrop = (imageId, wordId) => {
-    if (isAnimating) {
-      return;
-    }
+  // Initialize a new round with 4 pictures but only 1 word
+  const setupNewRound = () => {
+    setShowConfetti(false);
+    setShowIncorrect(false);
+    setIsAnimating(false);
+    setSelectedItemId(null);
+
+    // Shuffle and pick 4 random pairs
+    const shuffled = [...allPairs].sort(() => 0.5 - Math.random());
+    const selectedPairs = shuffled.slice(0, 4);
+    
+    // Pick one of these as the target word
+    const randomIndex = Math.floor(Math.random() * 4);
+    const selectedWord = selectedPairs[randomIndex];
+    
+    // Set the display pairs (images) and the single word to match
+    setDisplayPairs(selectedPairs);
+    setDisplayWord(selectedWord);
+    
+    // Speak the instructions and the selected word
+    setTimeout(() => {
+      const audio = new Audio('/sounds/match-drag.mp3'); // Create an instruction audio
+      audio.play().catch(error => {
+        console.error("Error playing instructions:", error);
+      });
+      
+      // Speak the target word after a short delay
+      setTimeout(() => {
+        if (selectedWord) {
+          speakWord(selectedWord.word);
+        }
+      }, 1000);
+    }, 500);
+  };
+
+  // Check if we're on iPad or touch device
+  useEffect(() => {
+    const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    setIsIPad(isTouch || isIOS);
+    
+    // Add CSS for iPad optimization
+    const style = document.createElement('style');
+    style.textContent = `
+      .selected-item {
+        border: 3px solid #3b82f6 !important;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5) !important;
+        transform: scale(0.95);
+      }
+      .word-drop-target.highlight {
+        background-color: #f0f9ff !important;
+        border: 3px dashed #3b82f6 !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
+  // Initialize the first round
+  useEffect(() => {
+    setupNewRound();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Handle the completion of item selection (for both drag and iPad tap)
+  const handleItemSelected = (itemId) => {
+    if (isAnimating || !displayWord) return;
     
     setIsAnimating(true);
     setTotalAttempts(prev => prev + 1);
     
-    // Find the corresponding image and word objects
-    const imageItem = displayPairs.find(item => item.id === imageId);
-    const wordItem = displayWords[0]; // Now we only have one word
+    // Find the corresponding image
+    const selectedImage = displayPairs.find(item => item.id === itemId);
     
-    // Check if it's a correct match (same word)
-    const isCorrect = imageItem && wordItem && imageItem.word === wordItem.word;
+    // Check if it's a correct match
+    const isCorrect = selectedImage && selectedImage.word === displayWord.word;
     
     const playSound = (soundPath, callback) => {
       const audio = new Audio(soundPath);
@@ -456,107 +397,45 @@ const WordImageDragGame = () => {
         setShowIncorrect(false);
         setIsAnimating(false);
         
-        // Speak the correct target word again after an incorrect answer
-        if (wordItem) {
-          speakWord(wordItem.word);
+        // Always repeat the target word after wrong answer
+        if (displayWord) {
+          speakWord(displayWord.word);
         }
       });
       setShowIncorrect(true);
     }
   };
 
-  // Initialize a new round with 4 pictures but only 1 word
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const setupNewRound = () => {
-    setShowConfetti(false);
-    setShowIncorrect(false);
-    setIsAnimating(false);
-    setDraggedItemId(null);
-    setHoveredWordId(null);
-
-    // Shuffle and pick 4 random pairs
-    const shuffled = [...allPairs].sort(() => 0.5 - Math.random());
-    const selectedPairs = shuffled.slice(0, 4);
+  // For desktop: handle standard drag and drop
+  const handleDrop = (e) => {
+    e.preventDefault();
+    if (isAnimating || !displayWord) return;
     
-    // Pick one of these as the target word
-    const randomIndex = Math.floor(Math.random() * 4);
-    const selectedWord = selectedPairs[randomIndex];
-    
-    // Set the display pairs (images) and the single word to match
-    setDisplayPairs(selectedPairs);
-    setDisplayWords([selectedWord]);
-    
-    // Speak the instructions and the selected word
-    setTimeout(() => {
-      const audio = new Audio('/sounds/match-drag.mp3'); // Create an instruction audio
-      audio.play().catch(error => {
-        console.error("Error playing instructions:", error);
-      });
-      
-      // Speak the target word after a short delay
-      setTimeout(() => {
-        if (selectedWord) {
-          speakWord(selectedWord.word);
-        }
-      }, 1000);
-    }, 500);
+    const draggedItemId = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    handleItemSelected(draggedItemId);
   };
 
-  // Initialize the game on first render
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    // Set up the reference to handleDrop for global access
-    handleDropRef.current = handleDrop;
-    window.handleDropForTouch = (draggedId) => {
-      if (displayWords.length > 0) {
-        handleDrop(draggedId, displayWords[0].id);
-      }
-    };
-    
-    // Add CSS for dragging classes
-    const style = document.createElement('style');
-    style.textContent = `
-      .dragging { opacity: 0.5; }
-      .drag-over { 
-        background-color: #f0f9ff !important;
-        border: 3px dashed #3b82f6 !important;
-      }
-      #touch-drag-ghost {
-        width: 100px !important;
-        height: 100px !important;
-        border-radius: 8px !important;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important;
-        background-size: cover !important;
-        background-position: center !important;
-      }
-    `;
-    document.head.appendChild(style);
-    
-    // Start the first round
-    setupNewRound();
-    
-    return () => {
-      // Clean up
-      delete window.handleDropForTouch;
-      document.head.removeChild(style);
-      
-      // Remove any lingering ghost elements
-      const ghost = document.getElementById('touch-drag-ghost');
-      if (ghost) {
-        document.body.removeChild(ghost);
-      }
-    };
-  }, []);
-
-  // Handle drag start
+  // Handle drag start (for both drag and iPad tap)
   const handleDragStart = (itemId) => {
-    setDraggedItemId(itemId);
+    setSelectedItemId(itemId);
   };
   
   // Handle drag end
   const handleDragEnd = () => {
-    setDraggedItemId(null);
-    setHoveredWordId(null);
+    // For iPad direct selection mode, don't clear selection immediately
+    if (!isIPad) {
+      setSelectedItemId(null);
+    }
+  };
+  
+  // Handle dragover for standard desktop
+  const handleDragOver = (e) => {
+    e.preventDefault(); // Allow drop
+    e.currentTarget.classList.add('highlight');
+  };
+  
+  const handleDragLeave = (e) => {
+    e.currentTarget.classList.remove('highlight');
   };
 
   // Calculate accuracy percentage
@@ -571,28 +450,33 @@ const WordImageDragGame = () => {
       
       {/* Single Word - Drop target */}
       <div className="w-full max-w-4xl mb-8">
-        {displayWords.length > 0 && (
-          <div className="word-drop-target" data-word-id={displayWords[0].id}>
+        {displayWord && (
+          <div 
+            className="word-drop-target" 
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => isIPad && selectedItemId && handleItemSelected(selectedItemId)}
+          >
             <WordCard 
-              item={displayWords[0]} 
-              onDrop={handleDrop}
+              item={displayWord} 
               onSpeak={speakWord}
-              isActive={draggedItemId !== null}
-              isHovering={hoveredWordId === displayWords[0].id}
+              isActive={selectedItemId !== null}
             />
           </div>
         )}
       </div>
       
-      {/* Pictures Grid - Draggable items */}
+      {/* Pictures Grid - Selectable and Draggable items */}
       <div className="grid grid-cols-2 gap-4 sm:gap-6 w-full max-w-4xl">
         {displayPairs.map(item => (
           <PictureCard 
             key={`pic-${item.id}`} 
             item={item} 
-            isDragging={draggedItemId === item.id}
+            isDragging={selectedItemId === item.id}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
+            onItemSelected={handleItemSelected}
           />
         ))}
       </div>
@@ -601,6 +485,13 @@ const WordImageDragGame = () => {
       <div style={{ position: 'absolute', bottom: '20px', right: '20px', fontSize: '0.8rem', color: 'black' }}>
         Accuracy: {accuracy}%
       </div>
+      
+      {/* iPad Selection Method Instructions */}
+      {isIPad && (
+        <div style={{ position: 'absolute', bottom: '20px', left: '20px', fontSize: '0.8rem', color: 'black' }}>
+          Tap an image, then tap the word
+        </div>
+      )}
     </div>
   );
 };
