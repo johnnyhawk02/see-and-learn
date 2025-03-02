@@ -1,55 +1,55 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-// Data for the game - using the provided vocabulary words
+// Data for the game - using image paths directly from the new location
 const allPairs = [
-  { id: 1, word: "bed", emoji: "🛏️" },
-  { id: 2, word: "hat", emoji: "🧢" },
-  { id: 3, word: "pig", emoji: "🐷" },
-  { id: 4, word: "cup", emoji: "🥤" },
-  { id: 5, word: "car", emoji: "🚗" },
-  { id: 6, word: "bag", emoji: "👜" },
-  { id: 7, word: "doll", emoji: "🧸" },
-  { id: 8, word: "fish", emoji: "🐟" },
-  { id: 9, word: "cat", emoji: "🐱" },
-  { id: 10, word: "ball", emoji: "⚽" },
-  { id: 11, word: "dog", emoji: "🐶" },
-  { id: 12, word: "keys", emoji: "🔑" },
-  { id: 13, word: "table", emoji: "🪑" }, // Fixed table emoji
-  { id: 14, word: "book", emoji: "📚" },
-  { id: 15, word: "daddy", emoji: "👨" },
-  { id: 16, word: "mummy", emoji: "👩" },
-  { id: 17, word: "apple", emoji: "🍎" },
-  { id: 18, word: "baby", emoji: "👶" },
-  { id: 19, word: "cow", emoji: "🐄" },
-  { id: 20, word: "spoon", emoji: "🥄" },
-  { id: 21, word: "banana", emoji: "🍌" },
-  { id: 22, word: "duck", emoji: "🦆" },
-  { id: 23, word: "socks", emoji: "🧦" },
-  { id: 24, word: "bath", emoji: "🛁" },
-  { id: 25, word: "chair", emoji: "🪑" },
-  { id: 26, word: "brush", emoji: "🪥" },
-  { id: 27, word: "shoes", emoji: "👟" },
-  { id: 28, word: "flower", emoji: "🌸" },
-  { id: 29, word: "bear", emoji: "🐻" },
-  { id: 30, word: "drink", emoji: "🥛" },
-  { id: 31, word: "sheep", emoji: "🐑" },
-  { id: 32, word: "nose", emoji: "👃" },
-  { id: 33, word: "wash", emoji: "🧼" },
-  { id: 34, word: "coat", emoji: "🧥" },
-  { id: 35, word: "eating", emoji: "🍽️" },
-  { id: 36, word: "biscuit", emoji: "🍪" },
-  { id: 37, word: "eyes", emoji: "👁️" },
-  { id: 38, word: "sitting", emoji: "💺" },
-  { id: 39, word: "blocks", emoji: "🧱" },
-  { id: 40, word: "mouth", emoji: "👄" },
-  { id: 41, word: "sleeping", emoji: "💤" },
-  { id: 42, word: "bird", emoji: "🐦" },
-  { id: 43, word: "hair", emoji: "💇" },
-  { id: 44, word: "crying", emoji: "😢" },
-  { id: 45, word: "phone", emoji: "📱" },
-  { id: 46, word: "walk", emoji: "🚶" },
-  { id: 47, word: "drinking", emoji: "🥤" },
-  { id: 48, word: "brushing", emoji: "🪥" }
+  { id: 1, word: "bed", image: "/card-images/bed.png" },
+  { id: 2, word: "hat", image: "/card-images/hat.png" },
+  { id: 3, word: "pig", image: "/card-images/pig.png" },
+  { id: 4, word: "cup", image: "/card-images/cup.png" },
+  { id: 5, word: "car", image: "/card-images/car.png" },
+  { id: 6, word: "bag", image: "/card-images/bag.png" },
+  { id: 7, word: "doll", image: "/card-images/doll.png" },
+  { id: 8, word: "fish", image: "/card-images/fish.png" },
+  { id: 9, word: "cat", image: "/card-images/cat.png" },
+  { id: 10, word: "ball", image: "/card-images/ball.png" },
+  { id: 11, word: "dog", image: "/card-images/dog.png" },
+  { id: 12, word: "keys", image: "/card-images/keys.png" },
+  { id: 13, word: "table", image: "/card-images/table.png" },
+  { id: 14, word: "book", image: "/card-images/book.png" },
+  { id: 15, word: "daddy", image: "/card-images/daddy.png" },
+  { id: 16, word: "mummy", image: "/card-images/mummy.png" },
+  { id: 17, word: "apple", image: "/card-images/apple.png" },
+  { id: 18, word: "baby", image: "/card-images/baby.png" },
+  { id: 19, word: "cow", image: "/card-images/cow.png" },
+  { id: 20, word: "spoon", image: "/card-images/spoon.png" },
+  { id: 21, word: "banana", image: "/card-images/banana.png" },
+  { id: 22, word: "duck", image: "/card-images/duck.png" },
+  { id: 23, word: "socks", image: "/card-images/socks.png" },
+  { id: 24, word: "bath", image: "/card-images/bath.png" },
+  { id: 25, word: "chair", image: "/card-images/chair.png" },
+  { id: 26, word: "brush", image: "/card-images/brush.png" },
+  { id: 27, word: "shoes", image: "/card-images/shoes.png" },
+  { id: 28, word: "flower", image: "/card-images/flower.png" },
+  { id: 29, word: "bear", image: "/card-images/bear.png" },
+  { id: 30, word: "drink", image: "/card-images/drink.png" },
+  { id: 31, word: "sheep", image: "/card-images/sheep.png" },
+  { id: 32, word: "nose", image: "/card-images/nose.png" },
+  { id: 33, word: "wash", image: "/card-images/wash.png" },
+  { id: 34, word: "coat", image: "/card-images/coat.png" },
+  { id: 35, word: "eating", image: "/card-images/eating.png" },
+  { id: 36, word: "biscuit", image: "/card-images/biscuit.png" },
+  { id: 37, word: "eyes", image: "/card-images/eyes.png" },
+  { id: 38, word: "sitting", image: "/card-images/sitting.png" },
+  { id: 39, word: "blocks", image: "/card-images/blocks.png" },
+  { id: 40, word: "mouth", image: "/card-images/mouth.png" },
+  { id: 41, word: "sleeping", image: "/card-images/sleeping.png" },
+  { id: 42, word: "bird", image: "/card-images/bird.png" },
+  { id: 43, word: "hair", image: "/card-images/hair.png" },
+  { id: 44, word: "crying", image: "/card-images/crying.png" },
+  { id: 45, word: "phone", image: "/card-images/phone.png" },
+  { id: 46, word: "walk", image: "/card-images/walk.png" },
+  { id: 47, word: "drinking", image: "/card-images/drinking.png" },
+  { id: 48, word: "brushing", image: "/card-images/brushing.png" }
 ];
 
 // Confetti Component - only shown for correct answers
@@ -156,7 +156,7 @@ const IncorrectFlash = ({ active }) => {
   );
 };
 
-// Word Card Component - Now bigger and at the top
+// Word Card Component
 const WordCard = ({ item, onSpeak }) => {
   return (
     <div
@@ -168,45 +168,20 @@ const WordCard = ({ item, onSpeak }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        border: '3px solid #3b82f6',
         boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-        color: '#1e40af',
+        color: 'black',
         position: 'relative',
         overflow: 'hidden',
-        fontSize: '5rem', // Bigger font size
+        fontSize: '5rem',
         margin: '0 auto',
         cursor: 'pointer'
       }}
-      onClick={() => onSpeak(item.word)}
     >
-      {/* Decorative elements */}
+      {/* Word text - made clickable */}
       <div 
-        style={{
-          position: 'absolute',
-          top: '-20px',
-          left: '-20px',
-          width: '60px',
-          height: '60px',
-          borderRadius: '50%',
-          background: 'rgba(59, 130, 246, 0.2)',
-          zIndex: 0
-        }}
-      />
-      <div 
-        style={{
-          position: 'absolute',
-          bottom: '-15px',
-          right: '-15px',
-          width: '40px',
-          height: '40px',
-          borderRadius: '50%',
-          background: 'rgba(59, 130, 246, 0.15)',
-          zIndex: 0
-        }}
-      />
-      
-      {/* Word text */}
-      <div style={{ position: 'relative', zIndex: 1 }}>
+        style={{ position: 'relative', zIndex: 1, cursor: 'pointer' }}
+        onClick={() => onSpeak(item.word)}
+      >
         {item.word}
       </div>
     </div>
@@ -233,17 +208,16 @@ const PictureCard = ({ item, onSelect, currentWordId, isAnimating }) => {
       style={{ 
         backgroundColor: isPressed ? '#f0f9ff' : 'white',
         width: '100%',
-        height: '220px',
-        fontSize: '6rem',
+        position: 'relative',
+        overflow: 'hidden',
+        // Maintain 16:9 aspect ratio
+        paddingTop: '56.25%', // 9 / 16 * 100 = 56.25%
         margin: '0 auto',
         border: '3px solid ' + (isPressed ? '#3b82f6' : '#e5e7eb'),
         transition: 'all 0.1s ease-out',
         boxShadow: isPressed 
           ? 'inset 0 2px 8px rgba(0,0,0,0.2)' 
           : '0 6px 12px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.1)',
-        transform: isPressed ? 'scale(0.92) translateY(4px)' : 'scale(1) translateY(0)',
-        position: 'relative',
-        overflow: 'hidden'
       }}
       onClick={handleClick}
       onTouchStart={() => {
@@ -284,8 +258,28 @@ const PictureCard = ({ item, onSelect, currentWordId, isAnimating }) => {
         />
       )}
       
-      <div style={{ zIndex: 1, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {item.emoji}
+      <div style={{ 
+        position: 'absolute', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
+        <img 
+          src={item.image} 
+          alt={item.word} 
+          style={{ 
+            position: 'absolute', // Positioning the image absolutely
+            top: 0, 
+            left: 0, 
+            width: '100%', // Fill the width of the container
+            height: '100%', // Fill the height of the container
+            objectFit: 'cover' // Ensures the image covers the area without distortion
+          }} 
+        />
       </div>
     </div>
   );
@@ -307,13 +301,6 @@ const WordMatchingGame = () => {
     const audio = new Audio(audioFilePath);
     audio.play().catch(error => {
       console.error("Error playing audio:", error);
-      
-      // Fallback to Web Speech API if audio file fails
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(word);
-        utterance.rate = 0.8; // Slightly slower for clarity
-        window.speechSynthesis.speak(utterance);
-      }
     });
   };
 
@@ -341,7 +328,7 @@ const WordMatchingGame = () => {
     console.log(`Selected word: "${selectedWord.word}" (ID: ${selectedWord.id})`);
     console.log("All available pictures:");
     selectedPairs.forEach(pair => {
-      console.log(`- ${pair.emoji} (ID: ${pair.id}, Word: "${pair.word}")`);
+      console.log(`- ${pair.image} (ID: ${pair.id}, Word: "${pair.word}")`);
     });
   }, []);
 
@@ -392,19 +379,6 @@ const WordMatchingGame = () => {
       <Confetti active={showConfetti} />
       <IncorrectFlash active={showIncorrect} />
       
-      {/* Game title */}
-      <h1 className="text-3xl font-bold text-blue-700 mb-4">Vocabulary Matching Game</h1>
-      
-      {/* Score display */}
-      <div className="flex justify-between w-full max-w-4xl mb-2">
-        <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-medium">
-          Score: {correctAnswers}
-        </div>
-        <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-medium">
-          Accuracy: {accuracy}%
-        </div>
-      </div>
-      
       {/* Word Card - Now at the top */}
       <div className="w-full max-w-4xl mb-8">
         {currentWord && <WordCard item={currentWord} onSpeak={speakWord} />}
@@ -421,6 +395,11 @@ const WordMatchingGame = () => {
             isAnimating={isAnimating}
           />
         ))}
+      </div>
+
+      {/* Accuracy Display - Bottom right corner */}
+      <div style={{ position: 'absolute', bottom: '20px', right: '20px', fontSize: '0.8rem', color: 'black' }}>
+        Accuracy: {accuracy}%
       </div>
     </div>
   );
