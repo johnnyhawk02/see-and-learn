@@ -1,7 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
-import { TouchBackend } from 'react-dnd-touch-backend';
+import React, { useState, useEffect, useRef } from 'react';
 
 // Data for the game
 const allPairs = [
@@ -18,12 +15,6 @@ const allPairs = [
   { id: 11, word: "snowman", emoji: "☃️" },
   { id: 12, word: "pancake", emoji: "🥞" }
 ];
-
-// Choose the right backend based on device
-const getBackend = () => {
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  return isMobile ? TouchBackend : HTML5Backend;
-};
 
 // Confetti Component - only shown for correct answers
 const Confetti = ({ active }) => {
@@ -129,80 +120,135 @@ const IncorrectFlash = ({ active }) => {
   );
 };
 
-// Word Card Component
-const WordCard = ({ item, isAnimating }) => {
-  const [{ isDragging }, drag] = useDrag({
-    type: 'WORD',
-    item: { id: item.id, word: item.word, type: 'WORD' },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-    canDrag: !isAnimating,
-    options: {
-      // Increased touch delay to trigger drag on touch devices
-      delayTouch: 200
-    }
-  });
-
+// Word Card Component - Now bigger and at the top
+const WordCard = ({ item }) => {
   return (
     <div
-      ref={drag}
-      className="p-8 rounded-lg shadow-md text-center text-4xl font-bold select-none"
+      className="p-8 rounded-lg shadow-lg text-center font-bold select-none"
       style={{ 
-        opacity: isDragging ? 0.7 : 1,
-        backgroundColor: 'white',
-        cursor: isAnimating ? 'not-allowed' : (isDragging ? 'grabbing' : 'grab'),
-        width: '320px',
+        background: 'linear-gradient(to bottom, #ffffff, #f9fafb)',
+        width: '100%',
         height: '180px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        border: isDragging ? '2px dashed #3b82f6' : (isAnimating ? '1px solid #d1d5db' : '1px solid #e5e7eb'),
-        touchAction: 'none' // Prevent browser touch actions like scrolling
+        border: '3px solid #3b82f6',
+        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+        color: '#1e40af',
+        position: 'relative',
+        overflow: 'hidden',
+        fontSize: '5rem', // Bigger font size
+        margin: '0 auto'
       }}
     >
-      {item.word}
+      {/* Decorative elements */}
+      <div 
+        style={{
+          position: 'absolute',
+          top: '-20px',
+          left: '-20px',
+          width: '60px',
+          height: '60px',
+          borderRadius: '50%',
+          background: 'rgba(59, 130, 246, 0.2)',
+          zIndex: 0
+        }}
+      />
+      <div 
+        style={{
+          position: 'absolute',
+          bottom: '-15px',
+          right: '-15px',
+          width: '40px',
+          height: '40px',
+          borderRadius: '50%',
+          background: 'rgba(59, 130, 246, 0.15)',
+          zIndex: 0
+        }}
+      />
+      
+      {/* Word text */}
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        {item.word}
+      </div>
     </div>
   );
 };
 
 // Picture Card Component
-const PictureCard = ({ item, onMatch, currentWordId, isAnimating }) => {
-  const [{ isOver }, drop] = useDrop({
-    accept: 'WORD',
-    canDrop: () => !isAnimating,
-    drop: (draggedItem) => {
-      // Check if this picture's ID matches the current word ID
-      const isCorrectMatch = item.id === currentWordId;
-      
-      // Detailed logging for debugging
-      console.log(`Dropped "${draggedItem.word}" onto emoji "${item.emoji}"`);
-      console.log(`Picture ID: ${item.id}, Current Word ID: ${currentWordId}`);
-      console.log(`Match result: ${isCorrectMatch ? "CORRECT" : "INCORRECT"}`);
-      
-      // Call the match handler with the result
-      onMatch(isCorrectMatch);
-    },
-    collect: (monitor) => ({
-      isOver: !!monitor.isOver(),
-    }),
-  });
-
+const PictureCard = ({ item, onSelect, currentWordId, isAnimating }) => {
+  const [isPressed, setIsPressed] = useState(false);
+  
+  const handleClick = () => {
+    if (isAnimating) return;
+    
+    // Check if this picture's ID matches the current word ID
+    const isCorrectMatch = item.id === currentWordId;
+    
+    // Call the match handler with the result
+    onSelect(isCorrectMatch);
+  };
+  
   return (
     <div
-      ref={drop}
-      className="rounded-lg shadow-md flex justify-center items-center"
+      className="rounded-lg flex justify-center items-center cursor-pointer"
       style={{ 
-        backgroundColor: isOver ? '#e0f2fe' : 'white',
+        backgroundColor: isPressed ? '#f0f9ff' : 'white',
         width: '100%',
         height: '220px',
         fontSize: '6rem',
         margin: '0 auto',
-        border: isOver ? '2px dashed #3b82f6' : '1px solid #e5e7eb',
-        touchAction: 'none' // Prevent browser touch actions
+        border: '3px solid ' + (isPressed ? '#3b82f6' : '#e5e7eb'),
+        transition: 'all 0.1s ease-out',
+        boxShadow: isPressed 
+          ? 'inset 0 2px 8px rgba(0,0,0,0.2)' 
+          : '0 6px 12px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.1)',
+        transform: isPressed ? 'scale(0.92) translateY(4px)' : 'scale(1) translateY(0)',
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+      onClick={handleClick}
+      onTouchStart={() => {
+        if (!isAnimating) {
+          setIsPressed(true);
+        }
+      }}
+      onTouchEnd={() => {
+        setIsPressed(false);
+      }}
+      onTouchCancel={() => {
+        setIsPressed(false);
+      }}
+      onMouseDown={() => {
+        if (!isAnimating) {
+          setIsPressed(true);
+        }
+      }}
+      onMouseUp={() => {
+        setIsPressed(false);
+      }}
+      onMouseLeave={() => {
+        setIsPressed(false);
       }}
     >
-      {item.emoji}
+      {/* Add ripple effect when pressed */}
+      {isPressed && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+            zIndex: 0,
+          }}
+        />
+      )}
+      
+      <div style={{ zIndex: 1, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {item.emoji}
+      </div>
     </div>
   );
 };
@@ -214,7 +260,7 @@ const WordMatchingGame = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [showIncorrect, setShowIncorrect] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
-
+  
   // Function to speak the word using the Web Speech API with improved voice selection
   const speakWord = (word) => {
     if ('speechSynthesis' in window) {
@@ -318,35 +364,38 @@ const WordMatchingGame = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleMatch = (isCorrect) => {
-    if (isAnimating) return; // Prevent handling matches during animations
+  const handleSelection = (isCorrect) => {
+    if (isAnimating) {
+      console.log("Animation already in progress, ignoring selection");
+      return;
+    }
     
-    setIsAnimating(true); // Start animation state
+    setIsAnimating(true);
     
     if (isCorrect) {
-      // Show confetti for correct matches
+      // For correct matches, show confetti and move to next round
       setShowConfetti(true);
       
-      // After animation, hide confetti and show next set of pictures
+      // After a short delay, hide confetti and show next set of pictures
       setTimeout(() => {
         setShowConfetti(false);
-        setIsAnimating(false); // End animation state
+        setIsAnimating(false);
         setupNewRound();
       }, 2000);
     } else {
-      // Flash red for incorrect matches, but don't advance to next round
+      // Flash red for incorrect selections
       setShowIncorrect(true);
       
-      // Say the word again when match is incorrect
+      // Say the word again when selection is incorrect
       setTimeout(() => {
-        // Speak the word again for incorrect matches
+        // Speak the word again for incorrect selections
         if (currentWord) {
           speakWord(currentWord.word);
-          console.log(`Repeating word after incorrect match: "${currentWord.word}"`);
+          console.log(`Repeating word after incorrect selection: "${currentWord.word}"`);
         }
         
         setShowIncorrect(false);
-        setIsAnimating(false); // End animation state
+        setIsAnimating(false);
       }, 500);
     }
   };
@@ -356,48 +405,33 @@ const WordMatchingGame = () => {
       <Confetti active={showConfetti} />
       <IncorrectFlash active={showIncorrect} />
       
+      {/* Word Card - Now at the top */}
+      <div className="w-full max-w-4xl mb-10">
+        {currentWord && <WordCard item={currentWord} />}
+      </div>
+      
       {/* Pictures Grid - Responsive and fills more of the screen */}
-      <div className="grid grid-cols-2 gap-8 w-full max-w-4xl mb-10">
+      <div className="grid grid-cols-2 gap-8 w-full max-w-4xl">
         {displayPairs.map(item => (
           <PictureCard 
             key={item.id} 
             item={item} 
-            onMatch={handleMatch} 
+            onSelect={handleSelection} 
             currentWordId={currentWord?.id}
             isAnimating={isAnimating}
           />
         ))}
       </div>
-      
-      {/* Word Card - Below pictures */}
-      <div className="flex justify-center w-full max-w-4xl">
-        {currentWord && <WordCard item={currentWord} isAnimating={isAnimating} />}
-      </div>
     </div>
   );
 };
 
-// Wrap with DndProvider to enable drag and drop
+// Main App Component
 const App = () => {
-  const Backend = getBackend();
-
-  // Touch device options
-  const touchOptions = {
-    enableTouchEvents: true,
-    enableMouseEvents: true,
-    enableKeyboardEvents: true,
-    delayTouchStart: 100, // A slight delay helps distinguish between scroll and drag
-    ignoreContextMenu: true,
-    touchSlop: 20, // Added tolerance for slight finger movements
-    preventDefaultTouchstart: true
-  };
-
   return (
-    <DndProvider backend={Backend} options={touchOptions}>
-      <div className="h-screen w-screen bg-gray-50 overflow-hidden">
-        <WordMatchingGame />
-      </div>
-    </DndProvider>
+    <div className="h-screen w-screen bg-gray-50 overflow-hidden">
+      <WordMatchingGame />
+    </div>
   );
 };
 
