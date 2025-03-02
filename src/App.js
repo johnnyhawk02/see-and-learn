@@ -350,6 +350,12 @@ const WordMatchingGame = () => {
       setCorrectAnswers(prev => prev + 1);
       setShowConfetti(true);
 
+      // Play the clapping sound
+      const clappingAudio = new Audio('/sounds/clapping.mp3');
+      clappingAudio.play().catch(error => {
+        console.error("Error playing clapping sound:", error);
+      });
+
       // After a short delay, hide confetti and show next set of pictures
       setTimeout(() => {
         setShowConfetti(false);
@@ -357,6 +363,12 @@ const WordMatchingGame = () => {
         setupNewRound();
       }, 2000);
     } else {
+      // Play the wrong sound
+      const wrongAudio = new Audio('/sounds/wrong.wav');
+      wrongAudio.play().catch(error => {
+        console.error("Error playing wrong sound:", error);
+      });
+
       setShowIncorrect(true);
       setTimeout(() => {
         if (currentWord) {
