@@ -271,9 +271,13 @@ const WordMatchingGame = ({ settings }) => {
   const accuracy = totalAttempts > 0 ? Math.round((correctAnswers / totalAttempts) * 100) : 0;
 
   return (
-    <div className={`flex flex-col justify-center items-center h-full w-full bg-gradient-to-b from-blue-50 to-indigo-100 ${
+    <div className={`flex flex-col justify-start items-center min-h-full w-full bg-gradient-to-b from-blue-50 to-indigo-100 ${
       numChoices === 6 ? 'p-1 sm:p-2' : 'p-2 sm:p-4'
-    }`}>
+    }`}
+    style={{
+      minHeight: '100vh',
+      height: 'fit-content'
+    }}>
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=ABeeZee:ital@0;1&display=swap');
         
@@ -308,6 +312,8 @@ const WordMatchingGame = ({ settings }) => {
           -ms-user-select: none;
           touch-action: none;
           overscroll-behavior: none;
+          min-height: 100vh;
+          height: fit-content;
         }
         img {
           pointer-events: none;
@@ -328,6 +334,12 @@ const WordMatchingGame = ({ settings }) => {
           align-items: center;
           min-height: 120px;
           padding: 0.5rem;
+        }
+        
+        @media (orientation: landscape) {
+          .word-card {
+            min-height: 80px;
+          }
         }
         
         .word-card h2 {
@@ -361,9 +373,13 @@ const WordMatchingGame = ({ settings }) => {
           }
         }
         
-        @media (max-height: 700px) {
-          .six-image-mode .word-card {
-            min-height: 60px;
+        @media (orientation: landscape) {
+          .six-image-mode {
+            grid-template-columns: repeat(3, 1fr);
+          }
+          
+          .picture-card {
+            max-height: calc((100vh - 200px) / 2);
           }
         }
       `}</style>
@@ -462,7 +478,9 @@ const WordMatchingGame = ({ settings }) => {
       }`}
       style={{
         alignItems: 'start',
-        gridAutoRows: 'auto'
+        gridAutoRows: 'auto',
+        maxHeight: '100%',
+        overflow: 'visible'
       }}>
         {displayPairs && displayPairs.length > 0 ? (
           displayPairs.map((item, index) => (

@@ -32,7 +32,10 @@ const PictureCard = ({ item, onSelect, currentWordId, isAnimating, className }) 
         animation: 'scaleIn 0.3s ease-out forwards',
         position: 'relative',
         width: '100%',
-        height: '100%'
+        height: '100%',
+        aspectRatio: '16/9',
+        maxWidth: '100%',
+        maxHeight: '100%'
       }}
     >
       <div className="absolute inset-0 bg-gray-100">
@@ -40,6 +43,11 @@ const PictureCard = ({ item, onSelect, currentWordId, isAnimating, className }) 
           src={item.image} 
           alt={item.word} 
           className="w-full h-full object-cover"
+          style={{
+            objectFit: 'cover',
+            width: '100%',
+            height: '100%'
+          }}
           onLoad={handleLoad}
           onError={() => console.error(`Failed to load image: ${item.image}`)}
         />
