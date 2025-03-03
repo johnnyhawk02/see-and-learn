@@ -1,8 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import WordMatchingGame from './components/WordMatchingGame';
+import SettingsButton from './components/SettingsButton';
+import SettingsDialog from './components/SettingsDialog';
 
 const App = () => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [gameSettings, setGameSettings] = useState({
+    playerName: '',
+    soundEnabled: true
+  });
+
+  // Load settings on initial render
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('gameSettings');
+    if (savedSettings) {
+      setGameSettings(JSON.parse(savedSettings));
+    }
+  }, []);
 
   // Prevent default behavior for touchmove to stop scrolling/dragging
   useEffect(() => {
@@ -31,21 +46,56 @@ const App = () => {
     setIsPlaying(false);
   };
 
+  const openSettings = () => {
+    setIsSettingsOpen(true);
+  };
+
+  const closeSettings = () => {
+    setIsSettingsOpen(false);
+  };
+
+  const saveSettings = (settings) => {
+    setGameSettings(settings);
+    closeSettings();
+  };
+
+  const getWelcomeMessage = () => {
+    if (gameSettings.playerName) {
+      return `Hi ${gameSettings.playerName}! Match the word with the correct picture!`;
+    }
+    return 'Match the word with the correct picture!';
+  };
+
   return (
     <div className="h-screen w-screen bg-gray-50 overflow-hidden flex flex-col items-center justify-center">
+      <SettingsDialog 
+        isOpen={isSettingsOpen} 
+        onClose={closeSettings} 
+        onSave={saveSettings} 
+      />
+      
       {!isPlaying ? (
         <div className="text-center p-6 bg-white rounded-xl shadow-lg max-w-xl w-full">
           <h1 className="text-4xl font-bold mb-6 text-blue-600">Word Matching Game</h1>
-          <p className="text-xl mb-8 text-gray-700">Match the word with the correct picture!</p>
+          <p className="text-xl mb-8 text-gray-700">{getWelcomeMessage()}</p>
           <button 
             onClick={startGame}
             className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-8 rounded-lg text-xl shadow-md transform transition-transform duration-200 hover:scale-105"
           >
             Play Game
           </button>
+          <div className="mt-4">
+            <button 
+              onClick={openSettings}
+              className="text-blue-500 hover:text-blue-700 font-medium"
+            >
+              Game Settings
+            </button>
+          </div>
         </div>
       ) : (
         <>
+          <SettingsButton onClick={openSettings} />
           <button 
             onClick={exitGame}
             className="absolute top-4 right-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-md z-10 text-base"
@@ -53,7 +103,7 @@ const App = () => {
             Exit Game
           </button>
           <div className="w-full h-full flex items-center justify-center">
-            <WordMatchingGame />
+            <WordMatchingGame settings={gameSettings} />
           </div>
         </>
       )}
