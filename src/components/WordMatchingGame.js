@@ -326,21 +326,16 @@ const WordMatchingGame = ({ settings }) => {
           padding: 0.5rem;
         }
         
-        @media (orientation: landscape) {
-          .word-card {
-            min-height: 60px;
-          }
-          
+        @media (orientation: portrait) {
           .word-card h2 {
-            font-size: clamp(2rem, 6vw, 3.5rem);
+            font-size: clamp(2.5rem, 8vw, 4rem);
           }
         }
         
-        .word-card h2 {
-          font-size: clamp(2.5rem, 8vw, 4rem);
-          line-height: 1.1;
-          text-align: center;
-          width: 100%;
+        @media (orientation: landscape) {
+          .word-card h2 {
+            font-size: clamp(2rem, 6vw, 3.5rem);
+          }
         }
         
         /* Layout adjustments for 6-image mode */
@@ -355,25 +350,33 @@ const WordMatchingGame = ({ settings }) => {
           inset: 0;
         }
         
-        /* Force 2 columns for 6 cards on iPad and similar devices */
-        @media (max-width: 1024px) {
-          .pictures-grid.six-cards {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
+        /* Responsive grid layout */
+        .pictures-grid {
+          display: grid;
+          gap: 0.5rem;
         }
         
-        @media (min-width: 1025px) {
+        /* Default 2 columns for narrow screens */
+        .pictures-grid.six-cards {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0.5rem;
+        }
+        
+        /* 3 columns when there's enough width AND height ratio is appropriate */
+        @media (min-width: 768px) and (min-height: 600px) {
           .pictures-grid.six-cards {
             grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
           }
         }
         
+        /* Adjust spacing in landscape */
         @media (orientation: landscape) {
           .pictures-grid {
             max-height: calc(100vh - 120px);
             overflow-y: auto;
-            padding-bottom: 1rem;
-            margin-bottom: 1rem;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
           }
           
           .pictures-grid::-webkit-scrollbar {
@@ -633,10 +636,10 @@ const WordMatchingGame = ({ settings }) => {
       
       {/* Pictures Grid */}
       <div 
-        className={`pictures-grid grid w-full max-w-4xl ${
+        className={`pictures-grid w-full max-w-4xl ${
           numChoices === 4 
             ? 'grid-cols-2 gap-3 sm:gap-4' 
-            : 'six-cards gap-2 sm:gap-3'
+            : 'six-cards'
         }`}
         style={{
           alignItems: 'start',
