@@ -25,13 +25,53 @@ const WordMatchingGame = () => {
     }
     
     const audioFilePath = `/sounds/vocabulary/${word}.wav`;
+    console.log("Attempting to speak word:", word, "Path:", audioFilePath);
+    
+    // Create new audio element with error handling
     const audio = new Audio(audioFilePath);
+    
+    // Add preload attribute and CORS settings
+    audio.preload = 'auto';
+    audio.crossOrigin = 'anonymous';
+    
+    // Handle errors more explicitly
+    audio.onerror = (e) => {
+      console.error("Error playing audio:", e);
+      console.error("Error code:", audio.error?.code, "Error message:", audio.error?.message);
+      
+      // Fall back to Web Speech API if audio file fails
+      try {
+        const utterance = new SpeechSynthesisUtterance(word);
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+      } catch (speechError) {
+        console.error("Speech synthesis failed:", speechError);
+      }
+    };
     
     // Store reference to current audio globally so we can cancel it if needed
     window.currentAudio = audio;
     
+    // Add a load event to make sure the audio loads before playing
+    audio.onloadeddata = () => {
+      audio.play().catch(error => {
+        console.error("Error playing audio after load:", error);
+        
+        // Fall back to Web Speech API if audio file fails to play
+        try {
+          const utterance = new SpeechSynthesisUtterance(word);
+          utterance.rate = 0.9;
+          window.speechSynthesis.speak(utterance);
+        } catch (speechError) {
+          console.error("Speech synthesis failed:", speechError);
+        }
+      });
+    };
+    
+    // Still try to play directly in case it's already cached
     audio.play().catch(error => {
-      console.error("Error playing audio:", error);
+      // This error is expected if the audio is not loaded yet
+      console.log("Initial play attempt failed, waiting for load:", error);
     });
     
     audio.onended = () => {
@@ -47,14 +87,37 @@ const WordMatchingGame = () => {
       window.currentAudio = null;
     }
     
+    console.log("Playing sound:", soundPath);
+    
+    // Create new audio element with error handling
     const audio = new Audio(soundPath);
+    
+    // Add preload attribute and CORS settings
+    audio.preload = 'auto';
+    audio.crossOrigin = 'anonymous';
     
     // Store reference to current audio globally
     window.currentAudio = audio;
     
-    audio.play().catch(error => {
-      console.error("Error playing sound:", error);
+    // Handle errors more explicitly
+    audio.onerror = (e) => {
+      console.error("Error playing sound:", e);
+      console.error("Error code:", audio.error?.code, "Error message:", audio.error?.message);
       if (callback) callback(); // Still call callback if there's an error
+    };
+    
+    // Add a load event to make sure the audio loads before playing
+    audio.onloadeddata = () => {
+      audio.play().catch(error => {
+        console.error("Error playing sound after load:", error);
+        if (callback) callback(); // Still call callback if there's an error
+      });
+    };
+    
+    // Still try to play directly in case it's already cached
+    audio.play().catch(error => {
+      // This error is expected if the audio is not loaded yet
+      console.log("Initial play attempt failed, waiting for load:", error);
     });
     
     audio.onended = () => {
@@ -353,4 +416,4 @@ const WordMatchingGame = () => {
   );
 };
 
-export default WordMatchingGame;
+export default WordMatchingGame; I 
