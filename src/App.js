@@ -1,8 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import WordMatchingGame from './components/WordMatchingGame';
 
 const App = () => {
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // Prevent default behavior for touchmove to stop scrolling/dragging
+  useEffect(() => {
+    const preventDrag = (e) => {
+      e.preventDefault();
+    };
+    
+    // Add event listeners when the game is playing
+    if (isPlaying) {
+      document.addEventListener('touchmove', preventDrag, { passive: false });
+      document.addEventListener('contextmenu', preventDrag);
+    }
+    
+    // Cleanup function to remove event listeners
+    return () => {
+      document.removeEventListener('touchmove', preventDrag);
+      document.removeEventListener('contextmenu', preventDrag);
+    };
+  }, [isPlaying]);
 
   const startGame = () => {
     setIsPlaying(true);

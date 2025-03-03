@@ -338,6 +338,23 @@ const WordMatchingGame = () => {
           from { transform: translateY(30px); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
         }
+        /* Prevent text selection and dragging */
+        body, html {
+          user-select: none;
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          touch-action: none;
+          overscroll-behavior: none;
+        }
+        img {
+          -webkit-user-drag: none;
+          -khtml-user-drag: none;
+          -moz-user-drag: none;
+          -o-user-drag: none;
+          user-drag: none;
+          pointer-events: none;
+        }
       `}</style>
       
       <IncorrectFlash 
