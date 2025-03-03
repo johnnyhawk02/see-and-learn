@@ -338,14 +338,27 @@ const WordMatchingGame = ({ settings }) => {
         }
         
         /* Layout adjustments for 6-image mode */
-        .six-image-mode .picture-card {
-          transform-origin: center;
+        .six-image-mode {
+          display: grid;
+          grid-auto-rows: 1fr;
         }
         
-        .six-image-mode {
-          /* Ensure equal height in 6-image mode */
-          display: grid;
-          grid-template-rows: repeat(2, 1fr);
+        .six-image-mode .picture-card {
+          transform-origin: center;
+          position: absolute;
+          inset: 0;
+        }
+        
+        @media (max-width: 640px) {
+          .six-image-mode {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        
+        @media (min-width: 641px) {
+          .six-image-mode {
+            grid-template-columns: repeat(3, 1fr);
+          }
         }
         
         @media (max-height: 700px) {
@@ -448,14 +461,13 @@ const WordMatchingGame = ({ settings }) => {
           : 'grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3'
       }`}
       style={{
-        height: numChoices === 6 ? 'calc(min(60vh, 600px))' : 'auto',
-        alignItems: 'stretch',
-        gridTemplateRows: numChoices === 6 ? 'repeat(2, 1fr)' : 'auto'
+        alignItems: 'start',
+        gridAutoRows: 'auto'
       }}>
         {displayPairs && displayPairs.length > 0 ? (
           displayPairs.map((item, index) => (
             <div 
-              className="relative" 
+              className="relative w-full" 
               key={item.id} 
               style={{ 
                 paddingTop: '56.25%', // 16:9 aspect ratio
@@ -478,7 +490,7 @@ const WordMatchingGame = ({ settings }) => {
           [...Array(numChoices)].map((_, i) => (
             <div 
               key={i} 
-              className="rounded-lg bg-gray-200 shadow-md relative" 
+              className="relative w-full rounded-lg bg-gray-200 shadow-md" 
               style={{ 
                 paddingTop: '56.25%', // 16:9 aspect ratio
                 animation: `fadeIn 0.3s ease-out ${i * (numChoices === 6 ? 0.05 : 0.1)}s both`

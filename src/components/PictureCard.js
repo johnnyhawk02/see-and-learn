@@ -30,11 +30,12 @@ const PictureCard = ({ item, onSelect, currentWordId, isAnimating, className }) 
       onClick={handleSelect}
       style={{
         animation: 'scaleIn 0.3s ease-out forwards',
+        position: 'relative',
         width: '100%',
         height: '100%'
       }}
     >
-      <div className="relative w-full h-full bg-gray-100">
+      <div className="absolute inset-0 bg-gray-100">
         <img 
           src={item.image} 
           alt={item.word} 
