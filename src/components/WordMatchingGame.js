@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import WordCard from './WordCard';
 import PictureCard from './PictureCard';
 import IncorrectFlash from './IncorrectFlash';
@@ -14,9 +14,89 @@ const WordMatchingGame = ({ settings }) => {
   const [showZoomedImage, setShowZoomedImage] = useState(false);
   const [zoomedImage, setZoomedImage] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [numChoices, setNumChoices] = useState(settings?.numChoices || 4);
 
   // Direct audio references to avoid queue complications
   const [currentAudio, setCurrentAudio] = useState(null);
+
+  // Fisher-Yates shuffle
+  const shuffleArray = (array) => {
+    if (!array || !Array.isArray(array)) return [];
+    
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+  };
+
+  // Set up a new round
+  const setupNewRound = useCallback(() => {
+    // Prevent interactions during setup
+    setIsAnimating(true);
+    setShowIncorrect(false);
+    setShowZoomedImage(false);
+    
+    try {
+      // Get all available pairs
+      const availablePairs = [...allPairs];
+      
+      // Shuffle and pick target word
+      const shuffled = shuffleArray(availablePairs);
+      const targetWord = shuffled[0];
+      
+      // Get the current number of choices from state
+      const choicesCount = numChoices;
+      
+      // Get more random words based on number of choices (minus the target)
+      const otherWords = shuffled.slice(1, choicesCount);
+      
+      // Combine and shuffle display order
+      const roundPairs = shuffleArray([targetWord, ...otherWords]);
+      
+      // Update state
+      setDisplayPairs(roundPairs);
+      setCurrentWord(targetWord);
+      
+      console.log(`New round: Target word = ${targetWord.word}, Choices = ${choicesCount}`);
+      
+      // Allow interactions
+      setIsAnimating(false);
+      
+      // Return the target word
+      return targetWord;
+    } catch (error) {
+      console.error("Error setting up round:", error);
+      setIsAnimating(false);
+      return null;
+    }
+  }, [numChoices]);
+
+  // Update numChoices when settings change
+  useEffect(() => {
+    const newChoices = settings?.numChoices || 4;
+    // Only update if the choice count actually changed
+    if (newChoices !== numChoices) {
+      console.log(`Settings changed: numChoices from ${numChoices} to ${newChoices}`);
+      setNumChoices(newChoices);
+    }
+  }, [settings?.numChoices, numChoices]);
+
+  // Reset game when numChoices changes
+  useEffect(() => {
+    console.log(`Number of choices changed to ${numChoices}, resetting game...`);
+    const targetWord = setupNewRound();
+    
+    // Speak the word after delay
+    const timer = setTimeout(() => {
+      if (targetWord && targetWord.word) {
+        speakWord(targetWord.word);
+      }
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [numChoices, setupNewRound]);
 
   // Basic function to speak a word
   const speakWord = (word) => {
@@ -91,57 +171,6 @@ const WordMatchingGame = ({ settings }) => {
       setCurrentAudio(null);
       if (callback) callback();
     });
-  };
-
-  // Fisher-Yates shuffle
-  const shuffleArray = (array) => {
-    if (!array || !Array.isArray(array)) return [];
-    
-    const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-    }
-    return newArray;
-  };
-
-  // Set up a new round
-  const setupNewRound = () => {
-    // Prevent interactions during setup
-    setIsAnimating(true);
-    setShowIncorrect(false);
-    setShowZoomedImage(false);
-    
-    try {
-      // Get all available pairs
-      const availablePairs = [...allPairs];
-      
-      // Shuffle and pick target word
-      const shuffled = shuffleArray(availablePairs);
-      const targetWord = shuffled[0];
-      
-      // Get 3 more random words
-      const otherWords = shuffled.slice(1, 4);
-      
-      // Combine and shuffle display order
-      const roundPairs = shuffleArray([targetWord, ...otherWords]);
-      
-      // Update state
-      setDisplayPairs(roundPairs);
-      setCurrentWord(targetWord);
-      
-      console.log(`New round: Target word = ${targetWord.word}`);
-      
-      // Allow interactions
-      setIsAnimating(false);
-      
-      // Return the target word
-      return targetWord;
-    } catch (error) {
-      console.error("Error setting up round:", error);
-      setIsAnimating(false);
-      return null;
-    }
   };
 
   // Initialize on first load
@@ -242,7 +271,9 @@ const WordMatchingGame = ({ settings }) => {
   const accuracy = totalAttempts > 0 ? Math.round((correctAnswers / totalAttempts) * 100) : 0;
 
   return (
-    <div className="flex flex-col justify-center items-center h-full w-full bg-gradient-to-b from-blue-50 to-indigo-100 p-4">
+    <div className={`flex flex-col justify-center items-center h-full w-full bg-gradient-to-b from-blue-50 to-indigo-100 ${
+      numChoices === 6 ? 'p-1 sm:p-2' : 'p-2 sm:p-4'
+    }`}>
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=ABeeZee:ital@0;1&display=swap');
         
@@ -280,6 +311,47 @@ const WordMatchingGame = ({ settings }) => {
         }
         img {
           pointer-events: none;
+        }
+        
+        /* Improve image fill */
+        .picture-card img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 0.5rem;
+        }
+        
+        /* Better word card styling */
+        .word-card {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 120px;
+          padding: 0.5rem;
+        }
+        
+        .word-card h2 {
+          font-size: clamp(2.5rem, 8vw, 4rem);
+          line-height: 1.1;
+          text-align: center;
+          width: 100%;
+        }
+        
+        /* Layout adjustments for 6-image mode */
+        .six-image-mode .picture-card {
+          transform-origin: center;
+        }
+        
+        .six-image-mode {
+          /* Ensure equal height in 6-image mode */
+          display: grid;
+          grid-template-rows: repeat(2, 1fr);
+        }
+        
+        @media (max-height: 700px) {
+          .six-image-mode .word-card {
+            min-height: 60px;
+          }
         }
       `}</style>
       
@@ -357,36 +429,61 @@ const WordMatchingGame = ({ settings }) => {
       )}
       
       {/* Word Card */}
-      <div className="w-full max-w-3xl mb-6 transform transition-transform duration-300 hover:scale-105">
+      <div className={`w-full max-w-4xl ${
+        numChoices === 6 ? 'mb-2 sm:mb-3' : 'mb-4 sm:mb-6'
+      }`}>
         {currentWord && (
           <WordCard 
             item={currentWord} 
             onSpeak={() => speakWord(currentWord.word)} 
+            size={numChoices === 6 ? 'compact' : 'normal'}
           />
         )}
       </div>
       
       {/* Pictures Grid */}
-      <div className="grid grid-cols-2 gap-4 sm:gap-6 w-full max-w-3xl">
+      <div className={`grid w-full max-w-4xl ${
+        numChoices === 4 
+          ? 'grid-cols-2 gap-3 sm:gap-4' 
+          : 'grid-cols-2 sm:grid-cols-3 gap-1 sm:gap-2 six-image-mode'
+      }`}
+      style={{
+        height: numChoices === 6 ? 'calc(min(60vh, 600px))' : 'auto',
+        alignItems: 'stretch',
+        gridTemplateRows: numChoices === 6 ? 'repeat(2, 1fr)' : 'auto'
+      }}>
         {displayPairs && displayPairs.length > 0 ? (
-          displayPairs.map(item => (
-            <PictureCard 
+          displayPairs.map((item, index) => (
+            <div 
+              className="relative" 
               key={item.id} 
-              item={item} 
-              onSelect={handleSelection} 
-              currentWordId={currentWord?.id}
-              isAnimating={isAnimating}
-            />
+              style={{ 
+                paddingTop: numChoices === 6 ? '0' : '56.25%',
+                height: numChoices === 6 ? '100%' : 'auto',
+                animation: `fadeIn 0.2s ease-out ${index * (numChoices === 6 ? 0.05 : 0.1)}s both`
+              }}
+            >
+              <div className={numChoices === 6 ? "h-full" : "absolute inset-0"}>
+                <PictureCard 
+                  item={item} 
+                  onSelect={handleSelection} 
+                  currentWordId={currentWord?.id}
+                  isAnimating={isAnimating}
+                  className="picture-card h-full w-full"
+                />
+              </div>
+            </div>
           ))
         ) : (
           // Placeholder cards
-          [...Array(4)].map((_, i) => (
+          [...Array(numChoices)].map((_, i) => (
             <div 
               key={i} 
-              className="rounded-lg bg-gray-200 shadow-md" 
+              className="rounded-lg bg-gray-200 shadow-md relative" 
               style={{ 
-                paddingTop: '56.25%',
-                animation: `fadeIn 0.3s ease-out ${i * 0.1}s both`
+                paddingTop: numChoices === 6 ? '0' : '56.25%',
+                height: numChoices === 6 ? '100%' : 'auto',
+                animation: `fadeIn 0.3s ease-out ${i * (numChoices === 6 ? 0.05 : 0.1)}s both`
               }}
             />
           ))
@@ -398,9 +495,9 @@ const WordMatchingGame = ({ settings }) => {
         className="bg-white bg-opacity-80 rounded-full px-4 py-2 shadow-md"
         style={{ 
           position: 'absolute', 
-          bottom: '16px', 
-          right: '16px', 
-          fontSize: '0.9rem', 
+          bottom: numChoices === 6 ? '8px' : '16px', 
+          right: numChoices === 6 ? '8px' : '16px', 
+          fontSize: numChoices === 6 ? '0.8rem' : '0.9rem', 
           color: 'black', 
           fontWeight: 'bold',
           animation: 'fadeIn 0.5s ease-out'

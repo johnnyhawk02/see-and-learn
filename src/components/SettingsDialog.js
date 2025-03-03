@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 const SettingsDialog = ({ isOpen, onClose, onSave }) => {
   const [playerName, setPlayerName] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [numChoices, setNumChoices] = useState(4);
 
   // Load saved settings when component mounts
   useEffect(() => {
@@ -11,13 +12,15 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
       const settings = JSON.parse(savedSettings);
       setPlayerName(settings.playerName || '');
       setSoundEnabled(settings.soundEnabled !== false);
+      setNumChoices(settings.numChoices || 4);
     }
   }, []);
 
   const handleSave = () => {
     const settings = {
       playerName,
-      soundEnabled
+      soundEnabled,
+      numChoices
     };
     
     localStorage.setItem('gameSettings', JSON.stringify(settings));
@@ -57,6 +60,32 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
           <p className="text-xs text-gray-500 mt-1">
             We'll use this to personalize your game experience
           </p>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2">
+            Number of Choices
+          </label>
+          <div className="flex space-x-4">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                checked={numChoices === 4}
+                onChange={() => setNumChoices(4)}
+                className="form-radio h-5 w-5 text-blue-600"
+              />
+              <span className="ml-2 text-gray-700">4 Choices (Easier)</span>
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                checked={numChoices === 6}
+                onChange={() => setNumChoices(6)}
+                className="form-radio h-5 w-5 text-blue-600"
+              />
+              <span className="ml-2 text-gray-700">6 Choices (Harder)</span>
+            </label>
+          </div>
         </div>
         
         <div className="mb-6">

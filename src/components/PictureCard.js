@@ -1,46 +1,52 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 
 // Picture Card Component
-const PictureCard = ({ item, onSelect, currentWordId, isAnimating }) => {
-  const handleClick = () => {
+const PictureCard = ({ item, onSelect, currentWordId, isAnimating, className }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const cardRef = useRef(null);
+
+  if (!item) return null;
+
+  const handleSelect = () => {
     if (isAnimating) return;
     
-    // Check if this picture's ID matches the current word ID
-    // Use optional chaining to avoid errors with undefined values
-    const isCorrectMatch = item?.id === currentWordId;
+    const isCorrect = item.id === currentWordId;
     
-    // Call the match handler with the result and item data
-    onSelect(isCorrectMatch, null, item);
+    // Get card position for animations
+    const rect = cardRef.current ? cardRef.current.getBoundingClientRect() : null;
+    
+    // Call parent handler
+    onSelect(isCorrect, rect, item);
   };
-  
-  // Add error handling to ensure item is properly defined
-  if (!item) {
-    return <div className="rounded-lg bg-gray-200 h-32 w-full"></div>;
-  }
-  
+
+  const handleLoad = () => {
+    setIsLoaded(true);
+  };
+
   return (
-    <button
-      onClick={handleClick}
-      disabled={isAnimating}
-      className={`
-        relative rounded-lg overflow-hidden
-        transform transition-all duration-150
-        hover:scale-[0.98] active:scale-[0.97]
-        focus:outline-none focus:ring-0
-        ${isAnimating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-      `}
-      style={{ 
-        paddingTop: '56.25%',
-        backgroundColor: '#f8f9fa',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+    <div 
+      ref={cardRef}
+      className={`${className || ''} rounded-xl overflow-hidden shadow-lg transition-all duration-200 hover:shadow-xl transform hover:scale-[1.03] active:scale-95 cursor-pointer ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+      onClick={handleSelect}
+      style={{
+        animation: 'scaleIn 0.3s ease-out forwards',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%'
       }}
     >
-      <img
-        src={item.image}
-        alt={item.word}
-        className="absolute inset-0 w-full h-full object-cover"
-      />
-    </button>
+      <div className="flex-grow relative bg-gray-100" style={{ minHeight: 0 }}>
+        <img 
+          src={item.image} 
+          alt={item.word} 
+          className="w-full h-full object-cover"
+          onLoad={handleLoad}
+          onError={() => console.error(`Failed to load image: ${item.image}`)}
+        />
+        {/* Optional hover overlay effect */}
+        <div className="absolute inset-0 bg-black opacity-0 hover:opacity-10 transition-opacity duration-200"></div>
+      </div>
+    </div>
   );
 };
 
