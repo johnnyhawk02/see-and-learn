@@ -259,12 +259,14 @@ const WordMatchingGame = ({ settings }) => {
   const accuracy = totalAttempts > 0 ? Math.round((correctAnswers / totalAttempts) * 100) : 0;
 
   return (
-    <div className={`flex flex-col justify-start items-center min-h-full w-full bg-gradient-to-b from-blue-50 to-indigo-100 ${
+    <div className={`flex flex-col justify-start items-center w-full bg-gradient-to-b from-blue-50 to-indigo-100 ${
       numChoices === 6 ? 'p-1 sm:p-2' : 'p-2 sm:p-4'
     }`}
     style={{
       minHeight: '100vh',
-      height: 'fit-content'
+      height: '100vh',
+      maxHeight: '100vh',
+      overflow: 'hidden'
     }}>
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=ABeeZee:ital@0;1&display=swap');
@@ -320,13 +322,17 @@ const WordMatchingGame = ({ settings }) => {
           display: flex;
           justify-content: center;
           align-items: center;
-          min-height: 120px;
+          min-height: 80px;
           padding: 0.5rem;
         }
         
         @media (orientation: landscape) {
           .word-card {
-            min-height: 80px;
+            min-height: 60px;
+          }
+          
+          .word-card h2 {
+            font-size: clamp(2rem, 6vw, 3.5rem);
           }
         }
         
@@ -349,25 +355,43 @@ const WordMatchingGame = ({ settings }) => {
           inset: 0;
         }
         
-        @media (max-width: 640px) {
-          .six-image-mode {
-            grid-template-columns: repeat(2, 1fr);
+        /* Force 2 columns for 6 cards on iPad and similar devices */
+        @media (max-width: 1024px) {
+          .pictures-grid.six-cards {
+            grid-template-columns: repeat(2, 1fr) !important;
           }
         }
         
-        @media (min-width: 641px) {
-          .six-image-mode {
+        @media (min-width: 1025px) {
+          .pictures-grid.six-cards {
             grid-template-columns: repeat(3, 1fr);
           }
         }
         
         @media (orientation: landscape) {
-          .six-image-mode {
-            grid-template-columns: repeat(3, 1fr);
+          .pictures-grid {
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
           }
           
-          .picture-card {
-            max-height: calc((100vh - 200px) / 2);
+          .pictures-grid::-webkit-scrollbar {
+            width: 8px;
+          }
+          
+          .pictures-grid::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+          }
+          
+          .pictures-grid::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+          }
+          
+          .pictures-grid::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.3);
           }
         }
         
@@ -595,8 +619,8 @@ const WordMatchingGame = ({ settings }) => {
       )}
       
       {/* Word Card */}
-      <div className={`w-full max-w-4xl ${
-        numChoices === 6 ? 'mb-2 sm:mb-3' : 'mb-4 sm:mb-6'
+      <div className={`w-full max-w-4xl flex-shrink-0 ${
+        numChoices === 6 ? 'mb-2 sm:mb-3' : 'mb-3 sm:mb-4'
       }`}>
         {currentWord && (
           <WordCard 
@@ -608,17 +632,17 @@ const WordMatchingGame = ({ settings }) => {
       </div>
       
       {/* Pictures Grid */}
-      <div className={`grid w-full max-w-4xl ${
-        numChoices === 4 
-          ? 'grid-cols-2 gap-3 sm:gap-4' 
-          : 'grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3'
-      }`}
-      style={{
-        alignItems: 'start',
-        gridAutoRows: 'auto',
-        maxHeight: '100%',
-        overflow: 'visible'
-      }}>
+      <div 
+        className={`pictures-grid grid w-full max-w-4xl ${
+          numChoices === 4 
+            ? 'grid-cols-2 gap-3 sm:gap-4' 
+            : 'six-cards gap-2 sm:gap-3'
+        }`}
+        style={{
+          alignItems: 'start',
+          gridAutoRows: 'auto'
+        }}
+      >
         {displayPairs && displayPairs.length > 0 ? (
           displayPairs.map((item, index) => (
             <div 
