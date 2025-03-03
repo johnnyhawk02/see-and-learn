@@ -3,9 +3,6 @@ import React, { useState, useEffect } from 'react';
 const SettingsDialog = ({ isOpen, onClose, onSave }) => {
   const [playerName, setPlayerName] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationSuccess, setGenerationSuccess] = useState(false);
-  const [generationError, setGenerationError] = useState('');
 
   // Load saved settings when component mounts
   useEffect(() => {
@@ -13,82 +10,18 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     if (savedSettings) {
       const settings = JSON.parse(savedSettings);
       setPlayerName(settings.playerName || '');
-      setSoundEnabled(settings.soundEnabled !== false); // Default to true if not set
+      setSoundEnabled(settings.soundEnabled !== false);
     }
   }, []);
 
-  // Reset status messages when dialog opens
-  useEffect(() => {
-    if (isOpen) {
-      setGenerationSuccess(false);
-      setGenerationError('');
-    }
-  }, [isOpen]);
-
-  const handleSave = async () => {
-    // Save basic settings immediately
+  const handleSave = () => {
     const settings = {
       playerName,
       soundEnabled
     };
     
     localStorage.setItem('gameSettings', JSON.stringify(settings));
-    
-    // Only generate audio if name provided and changed
-    const savedSettings = JSON.parse(localStorage.getItem('gameSettings') || '{}');
-    const previousName = savedSettings.previousName || '';
-    
-    if (playerName && playerName !== previousName) {
-      try {
-        setIsGenerating(true);
-        setGenerationSuccess(false);
-        setGenerationError('');
-        
-        // Generate personalized audio using gTTS
-        await generatePersonalizedAudio(playerName);
-        
-        // Update settings with the name that now has audio
-        settings.previousName = playerName;
-        localStorage.setItem('gameSettings', JSON.stringify(settings));
-        
-        setGenerationSuccess(true);
-      } catch (error) {
-        console.error('Error generating audio:', error);
-        setGenerationError('Failed to generate personalized audio. Please try again later.');
-      } finally {
-        setIsGenerating(false);
-      }
-    }
-    
-    // Notify parent component
     onSave(settings);
-  };
-  
-  // This function would call your backend to generate audio using gTTS
-  const generatePersonalizedAudio = async (name) => {
-    // This would be replaced with your actual API call
-    // For demo purposes, we'll simulate a delay
-    return new Promise((resolve) => {
-      // Simulate API call delay
-      setTimeout(() => {
-        // In reality, this would make an API request to a backend
-        // that uses gTTS to generate audio and returns file URLs
-        console.log(`Generated audio for name: ${name}`);
-        
-        // Normally you'd save the returned audio URLs
-        const mockAudioUrls = {
-          wellDone: `/generated-audio/well-done-${name.toLowerCase()}.mp3`,
-          greatJob: `/generated-audio/great-job-${name.toLowerCase()}.mp3`,
-          excellent: `/generated-audio/excellent-${name.toLowerCase()}.mp3`,
-          keepItUp: `/generated-audio/keep-it-up-${name.toLowerCase()}.mp3`,
-        };
-        
-        // Store these URLs for later use
-        localStorage.setItem('personalizedAudio', JSON.stringify(mockAudioUrls));
-        
-        resolve(mockAudioUrls);
-      }, 1500); // Simulate 1.5 second delay for API call
-    });
   };
 
   if (!isOpen) return null;
@@ -138,25 +71,6 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
           </label>
         </div>
         
-        {isGenerating && (
-          <div className="mb-4 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            <p className="mt-2 text-blue-500">Generating personalized audio...</p>
-          </div>
-        )}
-        
-        {generationSuccess && (
-          <div className="mb-4 p-2 bg-green-100 text-green-700 rounded">
-            Personalized audio generated successfully!
-          </div>
-        )}
-        
-        {generationError && (
-          <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
-            {generationError}
-          </div>
-        )}
-        
         <div className="flex justify-end">
           <button
             onClick={onClose}
@@ -167,7 +81,6 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
           <button
             onClick={handleSave}
             className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-            disabled={isGenerating}
           >
             Save Settings
           </button>

@@ -4,7 +4,6 @@ import PictureCard from './PictureCard';
 import IncorrectFlash from './IncorrectFlash';
 import { allPairs } from '../data/gameData';
 
-// Simplified version with minimal dependencies and direct audio handling
 const WordMatchingGame = ({ settings }) => {
   const [displayPairs, setDisplayPairs] = useState([]);
   const [currentWord, setCurrentWord] = useState(null);
@@ -17,18 +16,6 @@ const WordMatchingGame = ({ settings }) => {
 
   // Direct audio references to avoid queue complications
   const [currentAudio, setCurrentAudio] = useState(null);
-
-  // Praise phrases to use with the player's name
-  const getPraisePhrase = (playerName) => {
-    const praises = [
-      `Great job, ${playerName}!`,
-      `Awesome, ${playerName}!`,
-      `You're amazing, ${playerName}!`,
-      `Nice work, ${playerName}!`,
-      `Fantastic, ${playerName}!`
-    ];
-    return praises[Math.floor(Math.random() * praises.length)];
-  };
 
   // Basic function to speak a word
   const speakWord = (word) => {
@@ -196,36 +183,31 @@ const WordMatchingGame = ({ settings }) => {
       setZoomedImage(item);
       setShowZoomedImage(true);
       
-      // Play clapping sound and speak praise simultaneously
-      if (settings?.playerName) {
-        const praiseText = getPraisePhrase(settings.playerName);
-        
-        // Speak praise using Web Speech API
-        const utterance = new SpeechSynthesisUtterance(praiseText);
-        window.speechSynthesis.speak(utterance);
-      }
+      // Play clapping sound at 20% volume
+      playSound('/sounds/clapping.mp3', 0.2);
       
-      // Play correct sound at 20% volume
-      playSound('/sounds/clapping.mp3', 0.2, () => {
-        // Prepare for next round
+      // Play a praise audio track
+      const praiseAudio = new Audio('/sounds/praise/praise01.wav');
+      praiseAudio.play();
+      
+      // Prepare for next round
+      setTimeout(() => {
+        // Hide zoomed image
+        setShowZoomedImage(false);
+        
+        // Set up next round
+        const newTargetWord = setupNewRound();
+        
+        // Speak new word after transition
         setTimeout(() => {
-          // Hide zoomed image
-          setShowZoomedImage(false);
+          clearTimeout(safetyTimer);
           
-          // Set up next round
-          const newTargetWord = setupNewRound();
-          
-          // Speak new word after transition
-          setTimeout(() => {
-            clearTimeout(safetyTimer);
-            
-            // Speak new word
-            if (newTargetWord && newTargetWord.word) {
-              speakWord(newTargetWord.word);
-            }
-          }, 800);
-        }, 1500);
-      });
+          // Speak new word
+          if (newTargetWord && newTargetWord.word) {
+            speakWord(newTargetWord.word);
+          }
+        }, 800);
+      }, 1500);
     } else {
       // Show incorrect flash
       setShowIncorrect(true);
