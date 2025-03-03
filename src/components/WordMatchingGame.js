@@ -89,16 +89,20 @@ const WordMatchingGame = () => {
     
     return new Promise((resolve, reject) => {
       try {
-        // First shuffle all pairs and select 4 random pairs
+        // First shuffle all the words
         const shuffledAllPairs = shuffleArray([...allPairs]);
-        const selectedPairs = shuffledAllPairs.slice(0, 4); // Take first 4 pairs
         
-        // Then shuffle the display order of these 4 pairs
-        const shuffledDisplayPairs = shuffleArray([...selectedPairs]);
+        // Pick one word to be the target word
+        const selectedWord = shuffledAllPairs[0];
         
-        // Pick one of these as the current word to match
-        const randomIndex = Math.floor(Math.random() * 4);
-        const selectedWord = shuffledDisplayPairs[randomIndex];
+        // Get 3 random other pairs (excluding the selected word)
+        const otherPairs = shuffledAllPairs.slice(1, 4);
+        
+        // Combine the selected word with 3 random other words
+        const displayPairs = [selectedWord, ...otherPairs];
+        
+        // Shuffle the display order
+        const shuffledDisplayPairs = shuffleArray([...displayPairs]);
         
         // Log detailed debugging info about the round setup
         console.log("==== NEW ROUND SETUP ====");
@@ -227,14 +231,23 @@ const WordMatchingGame = () => {
           prepareNextRound();
         });
       } else {
-        // Show the incorrect flash - speaking will be handled by the IncorrectFlash component
+        // First show the red screen
         setShowIncorrect(true);
         
-        // Wait for a longer time to let the flash animation complete
+        // Then play the wrong sound, and after that show and say the word
+        // The timing will be coordinated by the IncorrectFlash component
+        playSound('/sounds/wrong.wav', () => {
+          // After wrong sound finishes, tell the IncorrectFlash to show and say the word
+          if (window.showAndSayWord) {
+            window.showAndSayWord();
+          }
+        });
+        
+        // Wait for the whole animation to complete before allowing next selection
         setTimeout(() => {
           setShowIncorrect(false);
           setIsAnimating(false);
-        }, 2500);
+        }, 3000);
       }
     };
 
@@ -273,9 +286,10 @@ const WordMatchingGame = () => {
       {/* Zoomed image overlay - shown when correct match */}
       {showZoomedImage && zoomedImage && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90"
+          className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ 
             animation: 'scaleIn 0.4s ease-out',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)' // Darker background
           }}
         >
           <div className="relative w-full h-full flex items-center justify-center">
@@ -287,16 +301,17 @@ const WordMatchingGame = () => {
                 height: '100%',
                 objectFit: 'cover',
                 objectPosition: 'center',
+                filter: 'brightness(0.4)' // Much darker image
               }} 
             />
+            {/* Word text centered in the middle of the screen */}
             <div 
-              className="absolute inset-x-0 bottom-0 text-center p-8 text-white font-bold"
+              className="absolute inset-0 flex items-center justify-center text-center text-white font-bold"
               style={{ 
-                fontSize: 'clamp(3rem, 8vw, 8rem)',
-                textShadow: '3px 3px 10px rgba(0,0,0,0.9)',
-                background: 'linear-gradient(transparent, rgba(0,0,0,0.1) 50%)',
-                animation: 'slideUp 0.5s ease-out',
-                paddingBottom: 'max(5vh, 2rem)'
+                fontSize: 'clamp(6.4rem, 28vw, 24rem)',
+                textShadow: '4px 4px 12px rgba(0,0,0,0.9)',
+                animation: 'fadeIn 0.5s ease-out',
+                lineHeight: '0.9'
               }}
             >
               {zoomedImage.word}

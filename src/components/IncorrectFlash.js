@@ -7,27 +7,27 @@ const IncorrectFlash = ({ active, currentWord, onSpeak }) => {
   
   useEffect(() => {
     if (active) {
-      // First show the red background - now fully opaque
+      // First show the red background - fully opaque
       setOpacity(1);
       
-      // Then show the word after a short delay
-      const wordTimer = setTimeout(() => {
+      // Create a function that can be called after wrong sound finishes
+      window.showAndSayWord = () => {
         setShowWord(true);
         // Speak the word when it appears
         if (onSpeak && currentWord) {
           onSpeak(currentWord);
         }
-      }, 300);
+      };
       
       // Clear everything after the animation is done
       const fadeTimer = setTimeout(() => {
         setOpacity(0);
         setShowWord(false);
-      }, 2000);
+      }, 3000);
       
       return () => {
-        clearTimeout(wordTimer);
         clearTimeout(fadeTimer);
+        window.showAndSayWord = null;
       };
     } else {
       setOpacity(0);
