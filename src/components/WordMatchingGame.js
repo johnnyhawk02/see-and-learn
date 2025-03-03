@@ -18,6 +18,18 @@ const WordMatchingGame = ({ settings }) => {
   // Direct audio references to avoid queue complications
   const [currentAudio, setCurrentAudio] = useState(null);
 
+  // Praise phrases to use with the player's name
+  const getPraisePhrase = (playerName) => {
+    const praises = [
+      `Great job, ${playerName}!`,
+      `Awesome, ${playerName}!`,
+      `You're amazing, ${playerName}!`,
+      `Nice work, ${playerName}!`,
+      `Fantastic, ${playerName}!`
+    ];
+    return praises[Math.floor(Math.random() * praises.length)];
+  };
+
   // Basic function to speak a word
   const speakWord = (word) => {
     if (!word || (settings && settings.soundEnabled === false)) return;
@@ -58,8 +70,8 @@ const WordMatchingGame = ({ settings }) => {
     });
   };
 
-  // Play sound with callback
-  const playSound = (path, callback) => {
+  // Play sound with callback and volume control
+  const playSound = (path, volume = 1, callback) => {
     if (settings && settings.soundEnabled === false) {
       if (callback) callback();
       return;
@@ -72,6 +84,7 @@ const WordMatchingGame = ({ settings }) => {
     }
     
     const audio = new Audio(path);
+    audio.volume = volume; // Set volume
     setCurrentAudio(audio);
     
     audio.onended = () => {
@@ -161,11 +174,11 @@ const WordMatchingGame = ({ settings }) => {
   const handleSelection = (isCorrect, elementRect, item) => {
     if (isAnimating) return;
     
-    // Prevent further interactions
-    setIsAnimating(true);
-    
     // Update total attempts
     setTotalAttempts(prev => prev + 1);
+    
+    // Prevent further interactions
+    setIsAnimating(true);
     
     // Set a safety timeout to prevent permanent freezing
     const safetyTimer = setTimeout(() => {
@@ -183,8 +196,17 @@ const WordMatchingGame = ({ settings }) => {
       setZoomedImage(item);
       setShowZoomedImage(true);
       
-      // Play correct sound
-      playSound('/sounds/clapping.mp3', () => {
+      // Play clapping sound and speak praise simultaneously
+      if (settings?.playerName) {
+        const praiseText = getPraisePhrase(settings.playerName);
+        
+        // Speak praise using Web Speech API
+        const utterance = new SpeechSynthesisUtterance(praiseText);
+        window.speechSynthesis.speak(utterance);
+      }
+      
+      // Play correct sound at 20% volume
+      playSound('/sounds/clapping.mp3', 0.2, () => {
         // Prepare for next round
         setTimeout(() => {
           // Hide zoomed image
@@ -196,6 +218,8 @@ const WordMatchingGame = ({ settings }) => {
           // Speak new word after transition
           setTimeout(() => {
             clearTimeout(safetyTimer);
+            
+            // Speak new word
             if (newTargetWord && newTargetWord.word) {
               speakWord(newTargetWord.word);
             }
@@ -207,7 +231,7 @@ const WordMatchingGame = ({ settings }) => {
       setShowIncorrect(true);
       
       // Play wrong sound
-      playSound('/sounds/wrong.wav', () => {
+      playSound('/sounds/wrong.wav', 1, () => {
         // Speak correct word after delay
         setTimeout(() => {
           if (currentWord && currentWord.word) {
