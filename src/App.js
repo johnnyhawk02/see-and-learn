@@ -95,15 +95,14 @@ const App = () => {
         </div>
       ) : (
         <>
-          <SettingsButton onClick={openSettings} />
-          <button 
-            onClick={exitGame}
-            className="absolute top-4 right-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow-md z-10 text-base"
-          >
-            Exit Game
-          </button>
           <div className="w-full h-full flex items-center justify-center">
-            <WordMatchingGame settings={gameSettings} />
+            <WordMatchingGame 
+              settings={{
+                ...gameSettings,
+                onSettingsChange: saveSettings,
+                onExit: exitGame
+              }} 
+            />
           </div>
         </>
       )}

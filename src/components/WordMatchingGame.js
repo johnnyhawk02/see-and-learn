@@ -84,15 +84,16 @@ const WordMatchingGame = ({ settings }) => {
     }
   }, [settings?.numChoices, numChoices]);
 
-  // Reset game when numChoices changes
+  // Initialize on first load and when numChoices changes
   useEffect(() => {
-    console.log(`Number of choices changed to ${numChoices}, resetting game...`);
+    console.log(`Initializing game with ${numChoices} choices...`);
     const targetWord = setupNewRound();
     
     // Speak the word after delay
     const timer = setTimeout(() => {
       if (targetWord && targetWord.word) {
         speakWord(targetWord.word);
+        console.log(`Speaking initial word: ${targetWord.word}`);
       }
     }, 1000);
     
@@ -173,20 +174,6 @@ const WordMatchingGame = ({ settings }) => {
       if (callback) callback();
     });
   };
-
-  // Initialize on first load
-  useEffect(() => {
-    const targetWord = setupNewRound();
-    
-    // Speak the word after delay
-    const timer = setTimeout(() => {
-      if (targetWord && targetWord.word) {
-        speakWord(targetWord.word);
-      }
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, []);
 
   // Handle selection of a card
   const handleSelection = (isCorrect, elementRect, item) => {
@@ -417,6 +404,7 @@ const WordMatchingGame = ({ settings }) => {
           box-shadow: 0 4px 6px rgba(0,0,0,0.1);
           min-width: 200px;
           z-index: 50;
+          animation: fadeIn 0.2s ease-out;
         }
         
         .menu-item {
@@ -453,63 +441,84 @@ const WordMatchingGame = ({ settings }) => {
       </div>
       
       {showMenu && (
-        <div className="menu-dropdown">
-          <div className="menu-item">
-            <span>Number of Cards</span>
-            <select 
-              value={numChoices} 
-              onChange={(e) => {
-                const newValue = parseInt(e.target.value);
-                if (settings?.onSettingsChange) {
-                  settings.onSettingsChange({ numChoices: newValue });
-                }
-              }}
-              className="ml-2 p-1 rounded border"
-            >
-              <option value={4}>4 Cards</option>
-              <option value={6}>6 Cards</option>
-            </select>
-          </div>
-          
-          <div className="menu-divider" />
-          
-          <div className="menu-item">
-            <span>Sound</span>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings?.soundEnabled !== false}
+        <>
+          <div 
+            className="fixed inset-0 z-40"
+            onClick={() => setShowMenu(false)}
+          />
+          <div className="menu-dropdown">
+            <div className="menu-item">
+              <span>Number of Cards</span>
+              <select 
+                value={numChoices} 
                 onChange={(e) => {
+                  const newValue = parseInt(e.target.value);
                   if (settings?.onSettingsChange) {
-                    settings.onSettingsChange({ soundEnabled: e.target.checked });
+                    settings.onSettingsChange({ 
+                      ...settings,
+                      numChoices: newValue 
+                    });
                   }
                 }}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-            </label>
+                className="ml-2 p-1 rounded border"
+              >
+                <option value={4}>4 Cards</option>
+                <option value={6}>6 Cards</option>
+              </select>
+            </div>
+            
+            <div className="menu-divider" />
+            
+            <div className="menu-item">
+              <span>Sound</span>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings?.soundEnabled !== false}
+                  onChange={(e) => {
+                    if (settings?.onSettingsChange) {
+                      settings.onSettingsChange({ 
+                        ...settings,
+                        soundEnabled: e.target.checked 
+                      });
+                    }
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+            
+            <div className="menu-divider" />
+            
+            <div className="menu-item">
+              <span>Accuracy</span>
+              <span className="font-bold">{accuracy}%</span>
+            </div>
+            
+            <div className="menu-divider" />
+            
+            <div className="menu-item">
+              <span>Player Name</span>
+              <span className="font-bold truncate max-w-[100px]" title={settings?.playerName || "Player"}>
+                {settings?.playerName || "Player"}
+              </span>
+            </div>
+            
+            <div className="menu-divider" />
+            
+            <div 
+              className="menu-item text-red-600 font-medium"
+              onClick={() => {
+                if (settings?.onExit) {
+                  settings.onExit();
+                }
+              }}
+            >
+              Exit Game
+            </div>
           </div>
-          
-          <div className="menu-divider" />
-          
-          <div className="menu-item">
-            <span>Accuracy</span>
-            <span className="font-bold">{accuracy}%</span>
-          </div>
-          
-          <div className="menu-divider" />
-          
-          <div 
-            className="menu-item text-red-600 font-medium"
-            onClick={() => {
-              if (settings?.onExit) {
-                settings.onExit();
-              }
-            }}
-          >
-            Exit Game
-          </div>
-        </div>
+        </>
       )}
       
       <IncorrectFlash 
