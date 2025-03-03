@@ -445,7 +445,7 @@ const WordMatchingGame = ({ settings }) => {
       <div className={`grid w-full max-w-4xl ${
         numChoices === 4 
           ? 'grid-cols-2 gap-3 sm:gap-4' 
-          : 'grid-cols-2 sm:grid-cols-3 gap-1 sm:gap-2 six-image-mode'
+          : 'grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3'
       }`}
       style={{
         height: numChoices === 6 ? 'calc(min(60vh, 600px))' : 'auto',
@@ -458,12 +458,11 @@ const WordMatchingGame = ({ settings }) => {
               className="relative" 
               key={item.id} 
               style={{ 
-                paddingTop: numChoices === 6 ? '0' : '56.25%',
-                height: numChoices === 6 ? '100%' : 'auto',
+                paddingTop: '56.25%', // 16:9 aspect ratio
                 animation: `fadeIn 0.2s ease-out ${index * (numChoices === 6 ? 0.05 : 0.1)}s both`
               }}
             >
-              <div className={numChoices === 6 ? "h-full" : "absolute inset-0"}>
+              <div className="absolute inset-0">
                 <PictureCard 
                   item={item} 
                   onSelect={handleSelection} 
@@ -481,8 +480,7 @@ const WordMatchingGame = ({ settings }) => {
               key={i} 
               className="rounded-lg bg-gray-200 shadow-md relative" 
               style={{ 
-                paddingTop: numChoices === 6 ? '0' : '56.25%',
-                height: numChoices === 6 ? '100%' : 'auto',
+                paddingTop: '56.25%', // 16:9 aspect ratio
                 animation: `fadeIn 0.3s ease-out ${i * (numChoices === 6 ? 0.05 : 0.1)}s both`
               }}
             />
