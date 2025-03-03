@@ -263,7 +263,7 @@ const WordMatchingGame = ({ settings }) => {
 
   return (
     <div className={`flex flex-col justify-start items-center w-full bg-gradient-to-b from-blue-50 to-indigo-100 ${
-      numChoices > 4 ? 'p-1 sm:p-2' : 'p-2 sm:p-4'
+      numChoices > 4 ? 'pt-4 sm:pt-6 p-1 sm:p-2' : 'pt-4 sm:pt-6 p-2 sm:p-4'
     }`}
     style={{
       minHeight: '100vh',
@@ -405,7 +405,7 @@ const WordMatchingGame = ({ settings }) => {
         /* Menu styles */
         .menu-button {
           position: fixed;
-          top: 12px;
+          top: 20px;
           right: 12px;
           z-index: 50;
           background: white;
@@ -463,6 +463,7 @@ const WordMatchingGame = ({ settings }) => {
       <div 
         className="menu-button"
         onClick={() => setShowMenu(!showMenu)}
+        style={{ top: '20px' }}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="4" y1="12" x2="20" y2="12"></line>
