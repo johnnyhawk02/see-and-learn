@@ -14,3 +14,21 @@ code {
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Lock to landscape view */
+@media only screen and (orientation: portrait) {
+  body {
+    overflow: hidden; /* Prevent scrolling */
+  }
+
+  .landscape-lock {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.8); /* Optional: dark overlay */
+    color: white;
+    font-size: 2rem;
+    text-align: center;
+  }
+}

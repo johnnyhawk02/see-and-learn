@@ -6,7 +6,7 @@ const IncorrectFlash = ({ active, currentWord, onSpeak }) => {
 
   return (
     <div 
-      className="fixed inset-0 bg-red-500 bg-opacity-50 flex items-center justify-center z-40"
+      className="fixed inset-0 bg-red-500 bg-opacity-100 flex items-center justify-center z-40"
       style={{ 
         animation: 'fadeIn 0.3s ease-out',
         pointerEvents: 'none'
@@ -19,13 +19,14 @@ const IncorrectFlash = ({ active, currentWord, onSpeak }) => {
             style={{ 
               textShadow: '4px 4px 12px rgba(0,0,0,0.9)',
               animation: 'fadeIn 0.5s ease-out',
-              lineHeight: '0.9',
+              lineHeight: '1.2',
               fontSize: 'clamp(4rem, 20vw, 24rem)',
               wordBreak: 'break-word',
               hyphens: 'auto',
               maxWidth: '90vw',
               maxHeight: '90vh',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              padding: '20px',
             }}
           >
             {currentWord}

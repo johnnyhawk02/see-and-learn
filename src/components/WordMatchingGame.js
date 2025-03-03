@@ -13,6 +13,7 @@ const WordMatchingGame = ({ settings }) => {
   const [totalAttempts, setTotalAttempts] = useState(0);
   const [showZoomedImage, setShowZoomedImage] = useState(false);
   const [zoomedImage, setZoomedImage] = useState(null);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   // Direct audio references to avoid queue complications
   const [currentAudio, setCurrentAudio] = useState(null);
@@ -173,6 +174,7 @@ const WordMatchingGame = ({ settings }) => {
       setIsAnimating(false);
       setShowZoomedImage(false);
       setShowIncorrect(false);
+      setShowConfetti(false);
     }, 5000);
     
     if (isCorrect) {
@@ -183,17 +185,22 @@ const WordMatchingGame = ({ settings }) => {
       setZoomedImage(item);
       setShowZoomedImage(true);
       
+      // Show confetti
+      setShowConfetti(true);
+      
       // Play clapping sound at 20% volume
       playSound('/sounds/clapping.mp3', 0.2);
       
-      // Play a praise audio track
-      const praiseAudio = new Audio('/sounds/praise/praise01.wav');
+      // Play a random praise audio track
+      const praiseNumber = Math.floor(Math.random() * 20) + 1;
+      const praiseAudio = new Audio(`/sounds/praise/praise${String(praiseNumber).padStart(2, '0')}.wav`);
       praiseAudio.play();
       
       // Prepare for next round
       setTimeout(() => {
-        // Hide zoomed image
+        // Hide zoomed image and confetti
         setShowZoomedImage(false);
+        setShowConfetti(false);
         
         // Set up next round
         const newTargetWord = setupNewRound();
@@ -235,8 +242,10 @@ const WordMatchingGame = ({ settings }) => {
   const accuracy = totalAttempts > 0 ? Math.round((correctAnswers / totalAttempts) * 100) : 0;
 
   return (
-    <div className="flex flex-col justify-center items-center h-full w-full bg-gray-50 p-4">
+    <div className="flex flex-col justify-center items-center h-full w-full bg-gradient-to-b from-blue-50 to-indigo-100 p-4">
       <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=ABeeZee:ital@0;1&display=swap');
+        
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
@@ -245,8 +254,23 @@ const WordMatchingGame = ({ settings }) => {
           from { transform: scale(0.8); opacity: 0; }
           to { transform: scale(1); opacity: 1; }
         }
-        /* Prevent text selection and dragging */
+        @keyframes celebrate {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+        @keyframes confettiFall {
+          0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+        @keyframes pulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+        /* Apply ABeeZee font globally */
         body, html {
+          font-family: 'ABeeZee', sans-serif;
           user-select: none;
           -webkit-user-select: none;
           -moz-user-select: none;
@@ -265,34 +289,65 @@ const WordMatchingGame = ({ settings }) => {
         onSpeak={speakWord}
       />
       
+      {/* Confetti */}
+      {showConfetti && (
+        <div className="fixed inset-0 z-30 pointer-events-none">
+          {[...Array(50)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: '-5vh',
+                width: `${Math.random() * 10 + 5}px`,
+                height: `${Math.random() * 10 + 5}px`,
+                background: ['#FFC700', '#FF0058', '#2E7CF6', '#FB6C42', '#A4DD00'][Math.floor(Math.random() * 5)],
+                borderRadius: '50%',
+                animation: `confettiFall ${Math.random() * 2 + 1}s linear forwards`,
+                animationDelay: `${Math.random() * 0.5}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
+      
       {/* Zoomed image overlay */}
       {showZoomedImage && zoomedImage && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center"
+          className="fixed inset-0 bg-opacity-100 flex items-center justify-center z-40"
           style={{ 
-            animation: 'fadeIn 0.4s ease-out',
+            animation: 'fadeIn 0.3s ease-out',
+            pointerEvents: 'none',
             backgroundColor: 'rgba(0, 0, 0, 0.7)'
           }}
         >
-          <div className="relative w-full h-full flex items-center justify-center">
-            <img 
-              src={zoomedImage.image} 
-              alt={zoomedImage.word} 
-              style={{ 
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: 'center',
-                filter: 'brightness(0.4)'
-              }} 
-            />
+          <img 
+            src={zoomedImage.image} 
+            alt={zoomedImage.word} 
+            style={{ 
+              position: 'absolute',
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center',
+              filter: 'brightness(0.4)',
+              zIndex: '-1'
+            }} 
+          />
+          <div className="text-center">
             <div 
-              className="absolute inset-0 flex items-center justify-center text-center text-white font-bold"
+              className="text-white font-bold"
               style={{ 
-                fontSize: 'clamp(6.4rem, 28vw, 24rem)',
                 textShadow: '4px 4px 12px rgba(0,0,0,0.9)',
-                animation: 'fadeIn 0.5s ease-out',
-                lineHeight: '0.9'
+                animation: 'fadeIn 0.5s ease-out, pulse 1s ease-in-out infinite',
+                lineHeight: '1.2',
+                fontSize: 'clamp(4rem, 20vw, 24rem)',
+                wordBreak: 'break-word',
+                hyphens: 'auto',
+                maxWidth: '90vw',
+                maxHeight: '90vh',
+                overflow: 'hidden',
+                padding: '20px',
               }}
             >
               {zoomedImage.word}
@@ -302,7 +357,7 @@ const WordMatchingGame = ({ settings }) => {
       )}
       
       {/* Word Card */}
-      <div className="w-full max-w-3xl mb-6">
+      <div className="w-full max-w-3xl mb-6 transform transition-transform duration-300 hover:scale-105">
         {currentWord && (
           <WordCard 
             item={currentWord} 
@@ -328,8 +383,11 @@ const WordMatchingGame = ({ settings }) => {
           [...Array(4)].map((_, i) => (
             <div 
               key={i} 
-              className="rounded-lg bg-gray-200" 
-              style={{ paddingTop: '56.25%' }}
+              className="rounded-lg bg-gray-200 shadow-md" 
+              style={{ 
+                paddingTop: '56.25%',
+                animation: `fadeIn 0.3s ease-out ${i * 0.1}s both`
+              }}
             />
           ))
         )}
@@ -337,13 +395,15 @@ const WordMatchingGame = ({ settings }) => {
 
       {/* Accuracy Display */}
       <div 
+        className="bg-white bg-opacity-80 rounded-full px-4 py-2 shadow-md"
         style={{ 
           position: 'absolute', 
           bottom: '16px', 
           right: '16px', 
           fontSize: '0.9rem', 
           color: 'black', 
-          fontWeight: 'bold' 
+          fontWeight: 'bold',
+          animation: 'fadeIn 0.5s ease-out'
         }}
       >
         Accuracy: {accuracy}%
