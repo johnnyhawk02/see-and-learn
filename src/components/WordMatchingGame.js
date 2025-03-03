@@ -43,15 +43,18 @@ const WordMatchingGame = ({ settings }) => {
       // Get all available pairs
       const availablePairs = [...allPairs];
       
+      // Ensure we have enough pairs for the current number of choices
+      if (availablePairs.length < numChoices) {
+        console.error(`Not enough pairs available for ${numChoices} choices`);
+        return null;
+      }
+      
       // Shuffle and pick target word
       const shuffled = shuffleArray(availablePairs);
       const targetWord = shuffled[0];
       
-      // Get the current number of choices from state
-      const choicesCount = numChoices;
-      
       // Get more random words based on number of choices (minus the target)
-      const otherWords = shuffled.slice(1, choicesCount);
+      const otherWords = shuffled.slice(1, numChoices);
       
       // Combine and shuffle display order
       const roundPairs = shuffleArray([targetWord, ...otherWords]);
@@ -60,7 +63,7 @@ const WordMatchingGame = ({ settings }) => {
       setDisplayPairs(roundPairs);
       setCurrentWord(targetWord);
       
-      console.log(`New round: Target word = ${targetWord.word}, Choices = ${choicesCount}`);
+      console.log(`New round: Target word = ${targetWord.word}, Choices = ${numChoices}`);
       
       // Allow interactions
       setIsAnimating(false);
@@ -260,7 +263,7 @@ const WordMatchingGame = ({ settings }) => {
 
   return (
     <div className={`flex flex-col justify-start items-center w-full bg-gradient-to-b from-blue-50 to-indigo-100 ${
-      numChoices === 6 ? 'p-1 sm:p-2' : 'p-2 sm:p-4'
+      numChoices > 4 ? 'p-1 sm:p-2' : 'p-2 sm:p-4'
     }`}
     style={{
       minHeight: '100vh',
@@ -357,13 +360,14 @@ const WordMatchingGame = ({ settings }) => {
         }
         
         /* Default 2 columns for narrow screens */
-        .pictures-grid.six-cards {
+        .pictures-grid {
           grid-template-columns: repeat(2, 1fr);
           gap: 0.5rem;
         }
         
         /* 3 columns when there's enough width AND height ratio is appropriate */
         @media (min-width: 768px) and (min-height: 600px) {
+          .pictures-grid.nine-cards,
           .pictures-grid.six-cards {
             grid-template-columns: repeat(3, 1fr);
             gap: 0.75rem;
@@ -491,6 +495,7 @@ const WordMatchingGame = ({ settings }) => {
               >
                 <option value={4}>4 Cards</option>
                 <option value={6}>6 Cards</option>
+                <option value={9}>9 Cards</option>
               </select>
             </div>
             
@@ -637,9 +642,11 @@ const WordMatchingGame = ({ settings }) => {
       {/* Pictures Grid */}
       <div 
         className={`pictures-grid w-full max-w-4xl ${
-          numChoices === 4 
-            ? 'grid-cols-2 gap-3 sm:gap-4' 
-            : 'six-cards'
+          numChoices === 9 
+            ? 'nine-cards'
+            : numChoices === 6 
+            ? 'six-cards'
+            : 'grid-cols-2 gap-3 sm:gap-4'
         }`}
         style={{
           alignItems: 'start',
