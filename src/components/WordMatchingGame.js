@@ -15,6 +15,7 @@ const WordMatchingGame = ({ settings }) => {
   const [zoomedImage, setZoomedImage] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [numChoices, setNumChoices] = useState(settings?.numChoices || 4);
+  const [showMenu, setShowMenu] = useState(false);
 
   // Direct audio references to avoid queue complications
   const [currentAudio, setCurrentAudio] = useState(null);
@@ -382,7 +383,134 @@ const WordMatchingGame = ({ settings }) => {
             max-height: calc((100vh - 200px) / 2);
           }
         }
+        
+        /* Menu styles */
+        .menu-button {
+          position: fixed;
+          top: 12px;
+          right: 12px;
+          z-index: 50;
+          background: white;
+          border-radius: 9999px;
+          width: 40px;
+          height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .menu-button:hover {
+          transform: scale(1.05);
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .menu-dropdown {
+          position: fixed;
+          top: 60px;
+          right: 12px;
+          background: white;
+          border-radius: 12px;
+          padding: 8px;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+          min-width: 200px;
+          z-index: 50;
+        }
+        
+        .menu-item {
+          padding: 12px;
+          cursor: pointer;
+          border-radius: 8px;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        
+        .menu-item:hover {
+          background: #f3f4f6;
+        }
+        
+        .menu-divider {
+          height: 1px;
+          background: #e5e7eb;
+          margin: 4px 0;
+        }
       `}</style>
+      
+      {/* Menu Button and Dropdown */}
+      <div 
+        className="menu-button"
+        onClick={() => setShowMenu(!showMenu)}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="4" y1="12" x2="20" y2="12"></line>
+          <line x1="4" y1="6" x2="20" y2="6"></line>
+          <line x1="4" y1="18" x2="20" y2="18"></line>
+        </svg>
+      </div>
+      
+      {showMenu && (
+        <div className="menu-dropdown">
+          <div className="menu-item">
+            <span>Number of Cards</span>
+            <select 
+              value={numChoices} 
+              onChange={(e) => {
+                const newValue = parseInt(e.target.value);
+                if (settings?.onSettingsChange) {
+                  settings.onSettingsChange({ numChoices: newValue });
+                }
+              }}
+              className="ml-2 p-1 rounded border"
+            >
+              <option value={4}>4 Cards</option>
+              <option value={6}>6 Cards</option>
+            </select>
+          </div>
+          
+          <div className="menu-divider" />
+          
+          <div className="menu-item">
+            <span>Sound</span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings?.soundEnabled !== false}
+                onChange={(e) => {
+                  if (settings?.onSettingsChange) {
+                    settings.onSettingsChange({ soundEnabled: e.target.checked });
+                  }
+                }}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+          
+          <div className="menu-divider" />
+          
+          <div className="menu-item">
+            <span>Accuracy</span>
+            <span className="font-bold">{accuracy}%</span>
+          </div>
+          
+          <div className="menu-divider" />
+          
+          <div 
+            className="menu-item text-red-600 font-medium"
+            onClick={() => {
+              if (settings?.onExit) {
+                settings.onExit();
+              }
+            }}
+          >
+            Exit Game
+          </div>
+        </div>
+      )}
       
       <IncorrectFlash 
         active={showIncorrect} 
@@ -516,22 +644,6 @@ const WordMatchingGame = ({ settings }) => {
             />
           ))
         )}
-      </div>
-
-      {/* Accuracy Display */}
-      <div 
-        className="bg-white bg-opacity-80 rounded-full px-4 py-2 shadow-md"
-        style={{ 
-          position: 'absolute', 
-          bottom: numChoices === 6 ? '8px' : '16px', 
-          right: numChoices === 6 ? '8px' : '16px', 
-          fontSize: numChoices === 6 ? '0.8rem' : '0.9rem', 
-          color: 'black', 
-          fontWeight: 'bold',
-          animation: 'fadeIn 0.5s ease-out'
-        }}
-      >
-        Accuracy: {accuracy}%
       </div>
     </div>
   );
