@@ -22,9 +22,10 @@ const WordCard = ({ item, onSpeak, size = 'normal' }) => {
       }}
     >
       <h2 style={{ 
-        fontSize: isCompact ? 'clamp(2rem, 8vw, 3.5rem)' : 'clamp(2.5rem, 10vw, 4rem)',
-        lineHeight: '1.2',
-        color: '#000000'
+        fontSize: isCompact ? 'clamp(3.6rem, 14.4vw, 6.3rem)' : 'clamp(4.5rem, 18vw, 7.2rem)',
+        lineHeight: '1.1',
+        color: '#000000',
+        fontWeight: '700'
       }}>
         {item.word}
       </h2>
