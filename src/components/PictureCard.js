@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 
 // Consistent Picture Card Component with centered black text on white background
 // Optimized for mobile performance and loading
-const PictureCard = ({ item, onClick, onLongPress, disabled, isIncorrect }) => {
+const PictureCard = ({ item, onClick, onLongPress, disabled, isIncorrect, showWords = true }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -11,6 +11,31 @@ const PictureCard = ({ item, onClick, onLongPress, disabled, isIncorrect }) => {
   const cardRef = useRef(null);
   const imageRef = useRef(null);
   
+  console.log(`PictureCard for "${item?.word}" with showWords=${showWords}, isIncorrect=${isIncorrect}`);
+  
+  // Log when showWords prop changes
+  useEffect(() => {
+    console.log(`showWords changed to ${showWords} for card: ${item?.word}`);
+  }, [showWords, item?.word]);
+
+  // Add a flash effect whenever showWords changes
+  useEffect(() => {
+    if (cardRef.current) {
+      cardRef.current.style.transition = 'background-color 0.3s';
+      cardRef.current.style.backgroundColor = showWords ? '#e6ffed' : '#fff3e0';
+      
+      // Reset after flash
+      const timer = setTimeout(() => {
+        if (cardRef.current) {
+          cardRef.current.style.backgroundColor = '';
+          cardRef.current.style.transition = '';
+        }
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [showWords]);
+
   useEffect(() => {
     // Clean up timer on unmount
     return () => {
@@ -50,6 +75,11 @@ const PictureCard = ({ item, onClick, onLongPress, disabled, isIncorrect }) => {
       clearTimeout(timeoutId);
     };
   }, [item, isLoaded]);
+
+  // Add a clear visual indicator when showWords changes
+  useEffect(() => {
+    console.log(`showWords CHANGED to: ${showWords} for word: ${item?.word}`);
+  }, [showWords, item?.word]);
 
   if (!item) {
     console.warn('PictureCard received null or undefined item');
@@ -104,153 +134,146 @@ const PictureCard = ({ item, onClick, onLongPress, disabled, isIncorrect }) => {
   return (
     <div
       ref={cardRef}
-      className="picture-card"
-      onMouseDown={handleTouchStart}
-      onMouseUp={handleTouchEnd}
+      className={`picture-card ${isPressed ? 'pressed' : ''} ${isHovered ? 'hovered' : ''} ${disabled ? 'disabled' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => {
-        setIsHovered(false);
-        setIsPressed(false);
-        clearTimeout(longPressTimer.current);
-      }}
+      onMouseLeave={() => setIsHovered(false)}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={() => {
+        if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+        }
         setIsPressed(false);
-        clearTimeout(longPressTimer.current);
       }}
       onClick={handleClick}
       style={{
-        overflow: 'hidden',
-        borderRadius: '4px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-        border: '1px solid #f0f0f0',
-        transition: 'transform 0.1s ease-in-out',
-        transform: isPressed ? 'scale(0.98)' : isHovered ? 'scale(1.01)' : 'scale(1)',
-        cursor: disabled ? 'default' : 'pointer',
-        opacity: disabled ? 0.7 : 1,
         position: 'relative',
+        overflow: 'hidden',
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+        transform: isPressed ? 'scale(0.98)' : 'scale(1)',
+        opacity: disabled ? 0.7 : 1,
+        cursor: disabled ? 'default' : 'pointer',
+        background: 'white',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        willChange: 'transform',
+        margin: '0 auto',
         width: '100%',
-        height: '100%'
+        maxWidth: '100%',
       }}
     >
-      <div 
-        style={{ 
-          width: '100%',
-          height: '0',
-          paddingBottom: '75%', // 4:3 aspect ratio
+      {/* Loading spinner styles */}
+      <style jsx>{`
+        .loading-spinner {
+          width: 30px;
+          height: 30px;
+          border: 3px solid rgba(0, 0, 0, 0.1);
+          border-radius: 50%;
+          border-top-color: #3498db;
+          animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+      
+      {/* Image Section */}
+      <div
+        style={{
           position: 'relative',
+          paddingBottom: '56.25%', // Standard 16:9 aspect ratio
           overflow: 'hidden',
-          backgroundColor: '#f5f5f5',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
+          backgroundColor: '#f0f0f0',
+          borderRadius: '8px 8px 0 0',
         }}
       >
-        {/* Loading spinner */}
-        {!isLoaded && (
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '24px',
-            height: '24px',
-            border: '3px solid #f3f3f3',
-            borderTop: '3px solid #3498db',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            zIndex: 1
-          }}>
-            <style>{`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}</style>
+        {/* Loading Spinner */}
+        {!isLoaded && !loadError && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <div className="loading-spinner"></div>
           </div>
         )}
         
-        {/* Fallback for load errors */}
-        {loadError && (
-          <div style={{
-            position: 'absolute',
-            top: '0',
-            left: '0',
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#f8f8f8',
-            color: '#999',
-            fontSize: '14px',
-            zIndex: 2
-          }}>
-            <span>Image not available</span>
-          </div>
-        )}
-
+        {/* Image */}
         <img
           ref={imageRef}
           src={item.image}
-          alt={item.word}
+          alt={item.word || 'Picture card'}
+          onLoad={handleLoad}
+          onError={handleError}
+          loading="lazy"
           style={{
             position: 'absolute',
-            top: '0',
-            left: '0',
+            top: 0,
+            left: 0,
             width: '100%',
             height: '100%',
             objectFit: 'cover',
             opacity: isLoaded ? 1 : 0,
-            filter: isIncorrect ? 'sepia(1) hue-rotate(-50deg) saturate(5) brightness(0.9)' : 'none',
-            transition: 'opacity 0.2s ease',
-            willChange: 'transform, opacity', // Improves performance on mobile
+            transition: 'opacity 0.3s ease',
+            willChange: 'opacity',
           }}
-          onLoad={handleLoad}
-          onError={handleError}
-          loading="lazy" // Use browser's lazy loading
         />
         
-        {/* Overlay for incorrect selections */}
-        {isIncorrect && (
-          <div style={{
-            position: 'absolute',
-            top: '0',
-            left: '0',
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(255, 80, 80, 0.3)',
-            mixBlendMode: 'multiply',
-            zIndex: 1
-          }}>
-            <span className="sr-only">Incorrect</span>
+        {/* Error Fallback */}
+        {loadError && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: '#f8f8f8',
+              color: '#666',
+              fontSize: '14px',
+              padding: '10px',
+              textAlign: 'center',
+            }}
+          >
+            Image not available
           </div>
         )}
       </div>
       
-      {/* Text section - black on white, centered */}
+      {/* Text Section - displays a space when words are hidden */}
       <div
         className="word-container"
         style={{
+          padding: '8px',
+          textAlign: 'center',
+          backgroundColor: 'white',
+          borderTop: '1px solid #eee',
+          color: isIncorrect ? 'red' : 'black',
+          fontSize: '28px',
+          fontWeight: '500',
+          minHeight: '48px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '4px',
-          height: '24px',
-          backgroundColor: 'white',
-          color: isIncorrect ? 'rgb(220, 38, 38)' : 'black',
-          fontSize: '14px',
-          fontWeight: 500,
-          textAlign: 'center',
+          lineHeight: '1.3',
           overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          borderTop: '1px solid #f0f0f0',
-          transition: 'color 0.2s ease'
+          borderRadius: '0 0 8px 8px',
         }}
       >
-        {item.word}
+        {showWords ? (item.word || 'Unknown') : ' '}
       </div>
     </div>
   );

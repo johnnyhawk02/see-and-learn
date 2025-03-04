@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import WordCard from './WordCard';
 import PictureCard from './PictureCard';
 import IncorrectFlash from './IncorrectFlash';
@@ -19,119 +19,50 @@ const WordMatchingGame = ({ settings }) => {
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [isIPadDevice, setIsIPadDevice] = useState(false);
   const [incorrectSelections, setIncorrectSelections] = useState(new Set());
+  const [showWordsOnCards, setShowWordsOnCards] = useState(settings?.showWordsOnCards !== false);
 
   // Direct audio references to avoid queue complications
   const [currentAudio, setCurrentAudio] = useState(null);
+  
+  // Ref to track initialization
+  const isInitialized = useRef(false);
+  const speakTimeoutRef = useRef(null);
 
-  // Fisher-Yates shuffle
+  // Add a ref to track if numChoices was changed manually
+  const manualChoiceChange = useRef(false);
+
+  // Add a forceUpdate function using useState hook
+  const [, forceUpdate] = useState({});
+
+  // Fisher-Yates shuffle with additional entropy
   const shuffleArray = (array) => {
     if (!array || !Array.isArray(array)) return [];
     
     const newArray = [...array];
+    const timestamp = Date.now();
+    
+    // Add additional entropy from timestamp
     for (let i = newArray.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      // Use timestamp bits to influence the random selection
+      const timestampBits = (timestamp >> (i % 32)) & 1;
+      const j = Math.floor((Math.random() + timestampBits) * (i + 1)) % (i + 1);
       [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
     }
+    
+    // Log shuffle statistics
+    console.log(`Shuffled array of length ${newArray.length}`);
     return newArray;
   };
 
-  // Set up a new round
-  const setupNewRound = useCallback(() => {
-    // Prevent interactions during setup
-    setIsAnimating(true);
-    setShowIncorrect(false);
-    setShowZoomedImage(false);
-    
-    try {
-      console.log('Setting up new round with numChoices:', numChoices);
-      
-      // Get all available pairs
-      const availablePairs = [...allPairs];
-      
-      // Ensure we have enough pairs for the current number of choices
-      if (availablePairs.length < numChoices) {
-        console.error(`Not enough pairs available for ${numChoices} choices`);
-        return null;
-      }
-      
-      // Shuffle and pick target word
-      const shuffled = shuffleArray(availablePairs);
-      const targetWord = shuffled[0];
-      
-      // Get more random words based on number of choices (minus the target)
-      const otherWords = shuffled.slice(1, numChoices);
-      
-      // Combine and shuffle display order
-      const roundPairs = shuffleArray([targetWord, ...otherWords]);
-      
-      console.log('Round pairs:', roundPairs);
-      
-      // Update state
-      setDisplayPairs(roundPairs);
-      setCurrentWord(targetWord);
-      
-      console.log(`New round: Target word = ${targetWord.word}, Choices = ${numChoices}`);
-      
-      // Allow interactions
-      setIsAnimating(false);
-      
-      // Return the target word
-      return targetWord;
-    } catch (error) {
-      console.error("Error setting up round:", error);
-      setIsAnimating(false);
-      return null;
-    }
-  }, [numChoices]);
-
-  // Update numChoices when settings change
-  useEffect(() => {
-    const newChoices = settings?.numChoices || 4;
-    // Only update if the choice count actually changed
-    if (newChoices !== numChoices) {
-      console.log(`Settings changed: numChoices from ${numChoices} to ${newChoices}`);
-      setNumChoices(newChoices);
-    }
-  }, [settings?.numChoices, numChoices]);
-
-  // Initialize on first load and when numChoices changes
-  useEffect(() => {
-    console.log(`Initializing game with ${numChoices} choices...`);
-    const targetWord = setupNewRound();
-    
-    // Speak the word after delay
-    const timer = setTimeout(() => {
-      if (targetWord && targetWord.word) {
-        speakWord(targetWord.word);
-        console.log(`Speaking initial word: ${targetWord.word}`);
-      }
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, [numChoices, setupNewRound]);
-
-  // Detect device type on mount
-  useEffect(() => {
-    const checkDeviceType = () => {
-      // Check for iPad specifically
-      const isIPad = /iPad/i.test(navigator.userAgent) || 
-        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1 && window.innerWidth >= 768 && window.innerWidth <= 1024);
-      
-      // Check for mobile phones (iPhone, Android phones)
-      const isMobile = /iPhone|Android/i.test(navigator.userAgent) && window.innerWidth <= 480;
-      
-      setIsIPadDevice(isIPad);
-      setIsMobileDevice(isMobile);
-    };
-    
-    checkDeviceType();
-    window.addEventListener('resize', checkDeviceType);
-    return () => window.removeEventListener('resize', checkDeviceType);
-  }, []);
-
-  // Basic function to speak a word
+  // Speak the current word
   const speakWord = (word) => {
     if (!word || (settings && settings.soundEnabled === false)) return;
+    
+    // Clear any pending speak timeouts
+    if (speakTimeoutRef.current) {
+      clearTimeout(speakTimeoutRef.current);
+      speakTimeoutRef.current = null;
+    }
     
     // Cancel any ongoing audio
     if (currentAudio) {
@@ -168,6 +99,129 @@ const WordMatchingGame = ({ settings }) => {
       setCurrentAudio(null);
     });
   };
+
+  // Set up a new round with new cards and a new target word
+  const setupNewRound = useCallback(() => {
+    try {
+      console.log('Setting up new round with numChoices:', numChoices);
+      
+      // Filter pairs to ensure they all have images
+      const eligiblePairs = allPairs.filter(pair => pair.image && pair.word);
+      
+      // Ensure we have enough pairs
+      if (eligiblePairs.length < numChoices) {
+        console.error('Not enough eligible pairs for the current game settings');
+        return null;
+      }
+      
+      // Shuffle the pairs and take required number
+      const shuffledPairs = shuffleArray([...eligiblePairs]).slice(0, numChoices);
+      
+      // Pick one as the target word
+      const targetIndex = Math.floor(Math.random() * shuffledPairs.length);
+      const targetPair = shuffledPairs[targetIndex];
+      
+      // Set the game state
+      setDisplayPairs(shuffledPairs);
+      setCurrentWord(targetPair);
+      setIncorrectSelections(new Set());
+      
+      // Clear any existing timeout
+      if (speakTimeoutRef.current) {
+        clearTimeout(speakTimeoutRef.current);
+      }
+      
+      // Speak the target word after a short delay - only do it here, not in handleSelection
+      speakTimeoutRef.current = setTimeout(() => {
+        speakWord(targetPair.word);
+        speakTimeoutRef.current = null;
+      }, 500);
+      
+      // Return the target pair for use by the caller
+      return targetPair;
+    } catch (error) {
+      console.error("Error in setupNewRound:", error);
+      return null;
+    }
+  }, [numChoices]); // Add numChoices to dependency array
+
+  // Initialize the game
+  useEffect(() => {
+    if (!isInitialized.current) {
+      console.log('Initializing game for the first time with numChoices:', numChoices);
+      setupNewRound();
+      isInitialized.current = true;
+    }
+  }, [setupNewRound, numChoices]);
+
+  // Update when settings change
+  useEffect(() => {
+    if (settings) {
+      console.log('Settings changed:', settings);
+      
+      // Check if numChoices changed
+      if (settings.numChoices && settings.numChoices !== numChoices && !manualChoiceChange.current) {
+        console.log(`Updating numChoices from ${numChoices} to ${settings.numChoices}`);
+        setNumChoices(settings.numChoices);
+        // Don't automatically call setupNewRound here, it will be triggered by the numChoices change
+      }
+      
+      // Don't override manual toggles by removing this code
+      // Only set from settings on initial load
+      if (!isInitialized.current && settings?.showWordsOnCards !== undefined) {
+        console.log(`Initial setting of showWordsOnCards to ${settings.showWordsOnCards}`);
+        setShowWordsOnCards(settings.showWordsOnCards !== false);
+      }
+    }
+  }, [settings, numChoices, showWordsOnCards]);
+
+  // Clean up audio and timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (currentAudio) {
+        currentAudio.pause();
+      }
+      if (speakTimeoutRef.current) {
+        clearTimeout(speakTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Update numChoices when settings change, but don't override manual changes
+  useEffect(() => {
+    // Skip if this was a manual change from the dropdown
+    if (manualChoiceChange.current) {
+      console.log('Skipping settings sync because manual change was made');
+      manualChoiceChange.current = false;
+      return;
+    }
+
+    const newChoices = settings?.numChoices || 4;
+    // Only update if the choice count actually changed
+    if (newChoices !== numChoices) {
+      console.log(`Settings changed: numChoices from ${numChoices} to ${newChoices}`);
+      setNumChoices(newChoices);
+    }
+  }, [settings?.numChoices, numChoices]);
+
+  // Detect device type on mount
+  useEffect(() => {
+    const checkDeviceType = () => {
+      // Check for iPad specifically
+      const isIPad = /iPad/i.test(navigator.userAgent) || 
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1 && window.innerWidth >= 768 && window.innerWidth <= 1024);
+      
+      // Check for mobile phones (iPhone, Android phones)
+      const isMobile = /iPhone|Android/i.test(navigator.userAgent) && window.innerWidth <= 480;
+      
+      setIsIPadDevice(isIPad);
+      setIsMobileDevice(isMobile);
+    };
+    
+    checkDeviceType();
+    window.addEventListener('resize', checkDeviceType);
+    return () => window.removeEventListener('resize', checkDeviceType);
+  }, []);
 
   // Play sound with callback and volume control
   const playSound = (path, volume = 1, callback) => {
@@ -254,14 +308,14 @@ const WordMatchingGame = ({ settings }) => {
         // Set up next round
         const newTargetWord = setupNewRound();
         
-        // Speak new word after transition
+        // Don't speak word again here - it's already spoken in setupNewRound
         setTimeout(() => {
           clearTimeout(safetyTimer);
           
-          // Speak new word
-          if (newTargetWord && newTargetWord.word) {
-            speakWord(newTargetWord.word);
-          }
+          // Don't speak new word here to avoid duplication
+          // if (newTargetWord && newTargetWord.word) {
+          //   speakWord(newTargetWord.word);
+          // }
         }, 800);
       }, 1500);
     } else {
@@ -269,7 +323,7 @@ const WordMatchingGame = ({ settings }) => {
       setIncorrectSelections(prev => new Set([...prev, item.id]));
       
       // Don't show incorrect flash
-      // setShowIncorrect(true);
+      // setShowIncorrect(false);
       
       // Play wrong sound
       playSound('/sounds/wrong.wav', 1, () => {
@@ -290,11 +344,114 @@ const WordMatchingGame = ({ settings }) => {
     }
   };
 
+  // Add the handleLongPress function
+  const handleLongPress = (item, rect) => {
+    setZoomedImage(item);
+    setShowZoomedImage(true);
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      setShowZoomedImage(false);
+    }, 3000);
+  };
+
   // Calculate accuracy
   const accuracy = totalAttempts > 0 ? Math.round((correctAnswers / totalAttempts) * 100) : 0;
 
+  // Get the appropriate grid class based on the number of choices
+  const getGridClass = () => {
+    console.log(`getGridClass called with numChoices: ${numChoices}`);
+    switch (numChoices) {
+      case 2:
+        return 'two-cards';
+      case 4:
+        return 'four-cards';
+      case 6:
+        return 'six-cards';
+      case 8:
+        return 'eight-cards';
+      case 9:
+        return 'nine-cards';
+      default:
+        return 'four-cards';
+    }
+  };
+
+  // Toggle menu visibility
+  const toggleMenu = () => {
+    setShowMenu(!showMenu);
+  };
+
+  // Add a dedicated effect for numChoices changes
+  useEffect(() => {
+    if (isInitialized.current) {
+      console.log(`numChoices changed to ${numChoices}, setting up new round`);
+      setupNewRound();
+    }
+  }, [numChoices, setupNewRound]);
+
+  // Add a dedicated effect to monitor showWordsOnCards changes
+  useEffect(() => {
+    console.log(`showWordsOnCards value changed to: ${showWordsOnCards}`);
+    // This is intentionally empty except for logging - we want to track when this changes
+  }, [showWordsOnCards]);
+
+  // Toggle words on cards - improved to prevent resets
+  const toggleWordsOnCards = () => {
+    console.log("Toggle function called. Current value:", showWordsOnCards);
+    
+    // Create a local copy of the current value
+    const currentValue = showWordsOnCards;
+    const newValue = !currentValue;
+    
+    console.log(`TOGGLING words on cards from ${currentValue} to ${newValue}`);
+    
+    // Set the state immediately
+    setShowWordsOnCards(newValue);
+    
+    // Also use a timeout to ensure it persists even if something else changes it
+    setTimeout(() => {
+      setShowWordsOnCards(prev => {
+        if (prev !== newValue) {
+          console.log(`State was changed back to ${prev}, re-setting to ${newValue}`);
+          return newValue;
+        }
+        return prev;
+      });
+    }, 50);
+    
+    // Update localStorage
+    try {
+      localStorage.setItem('showWordsOnCards', JSON.stringify(newValue));
+      localStorage.setItem('gameSettings', JSON.stringify({
+        ...settings,
+        showWordsOnCards: newValue
+      }));
+      console.log("Saved to localStorage:", newValue);
+    } catch (e) {
+      console.error('Failed to save to localStorage:', e);
+    }
+    
+    // If settings object has an update method, call it
+    if (settings && typeof settings.onSettingsChange === 'function') {
+      console.log("Calling onSettingsChange with new value:", newValue);
+      settings.onSettingsChange({
+        ...settings,
+        showWordsOnCards: newValue
+      });
+    }
+    
+    // Don't close the menu after toggling
+  };
+
   return (
     <div className="game-container pt-8 sm:pt-10 px-4 sm:px-6">
+      {console.log('RENDER: Current state', { 
+        numChoices, 
+        displayPairs: displayPairs.length, 
+        currentWord: currentWord?.word,
+        showWordsOnCards
+      })}
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=ABeeZee:ital@0;1&display=swap');
         
@@ -343,7 +500,7 @@ const WordMatchingGame = ({ settings }) => {
           object-fit: cover;
           border-radius: 0.5rem;
         }
-        
+
         /* Pictures container */
         .pictures-container {
           width: 100%;
@@ -352,6 +509,9 @@ const WordMatchingGame = ({ settings }) => {
           max-height: calc(100vh - 120px);
           overflow-y: auto;
           -webkit-overflow-scrolling: touch;
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
         }
         
         /* Base grid layout for all modes */
@@ -360,7 +520,8 @@ const WordMatchingGame = ({ settings }) => {
           width: 100%;
           max-width: 900px;
           margin: 0 auto;
-          grid-gap: 4px; /* Smaller gap to allow more space for content */
+          grid-gap: 4px;
+          justify-content: center !important;
         }
         
         /* Picture card base styles for all modes */
@@ -372,47 +533,126 @@ const WordMatchingGame = ({ settings }) => {
           flex-direction: column !important;
           overflow: hidden;
         }
-        
-        /* Nine cards layout (3x3 on larger screens, 2x5 on smaller) */
-        .pictures-grid.nine-cards {
-          grid-template-columns: repeat(3, 1fr);
-        }
-        
-        /* Eight cards layout (2x4 on all screens) */
-        .pictures-grid.eight-cards {
+
+        /* Four cards layout (2x2 on all screens) */
+        .pictures-grid.four-cards {
           grid-template-columns: repeat(2, 1fr);
         }
         
-        /* Six cards layout (3x2 on larger screens, 2x3 on smaller) */
-        .pictures-grid.six-cards {
-          grid-template-columns: repeat(3, 1fr);
-        }
-        
-        /* Two cards layout (2x1 on all screens) */
+        /* Two cards layout optimized for iPad and iPhone SE */
         .pictures-grid.two-cards {
-          grid-template-columns: repeat(2, 1fr);
-          max-width: 600px;
-          grid-gap: 10px;
+          grid-template-columns: repeat(2, 1fr) !important;
+          max-width: 800px !important;
+          gap: 1rem !important;
+          margin: 0 auto !important;
+          display: grid !important;
+          visibility: visible !important;
+          height: auto !important;
+          min-height: 250px !important;
+          max-height: none !important;
+          overflow: visible !important;
+          padding: 0 !important;
+          justify-content: center !important;
+        }
+        
+        .pictures-grid.two-cards .picture-card {
+          height: auto !important;
+          max-width: 100% !important;
+          display: flex !important;
+          flex-direction: column !important;
+          visibility: visible !important;
+          aspect-ratio: 16/9 !important;
+          overflow: visible !important;
+          margin: 0 auto !important;
+        }
+        
+        /* iPad specific styles */
+        @media (min-width: 768px) and (max-width: 1024px) {
+          .pictures-grid.two-cards {
+            max-width: 700px !important;
+            gap: 1.5rem !important;
+          }
+          
+          .pictures-grid.two-cards .picture-card {
+            max-width: 340px !important;
+            margin: 0 auto !important;
+          }
+          
+          .word-card {
+            min-height: 60px !important;
+          }
+          
+          .word-card span {
+            font-size: clamp(2.5rem, 10vw, 4rem) !important;
+          }
+          
+          .picture-card .word-container {
+            font-size: 32px !important;
+            min-height: 56px !important;
+            height: 56px !important;
+          }
+        }
+        
+        /* iPhone SE specific styles */
+        @media (max-width: 375px) {
+          .pictures-grid.two-cards {
+            max-width: 320px !important;
+            gap: 0.75rem !important;
+          }
+          
+          .pictures-grid.two-cards .picture-card {
+            max-width: 155px !important;
+            margin: 0 auto !important;
+          }
+          
+          .word-card {
+            min-height: 50px !important;
+          }
+          
+          .word-card span {
+            font-size: clamp(2rem, 8vw, 3rem) !important;
+          }
+          
+          .picture-card .word-container {
+            font-size: 24px !important;
+            min-height: 40px !important;
+            height: 40px !important;
+          }
+        }
+        
+        /* Ensure pictures container has enough height */
+        .pictures-container {
+          min-height: 200px !important;
+          overflow: visible !important;
+          display: block !important;
+          visibility: visible !important;
+          padding: 0.5rem !important;
+        }
+        
+        /* Force consistent appearance */
+        .pictures-grid.four-cards,
+        .pictures-grid.two-cards {
+          overflow: visible !important;
+          padding-bottom: 8px !important;
+          display: grid !important;
+          visibility: visible !important;
         }
         
         /* Mobile adjustments */
         @media (max-width: 480px) {
-          .pictures-grid.nine-cards,
-          .pictures-grid.six-cards {
-            grid-template-columns: repeat(2, 1fr);
-          }
-          
           .pictures-grid {
             grid-gap: 2px;
           }
         }
         
-        /* Ensure the text is always visible */
+        /* Remove the CSS that forces visibility */
+        /*
         .picture-card > div:last-child {
           display: flex !important;
           visibility: visible !important;
         }
-        
+        */
+
         /* Better word card styling */
         .word-card {
           display: flex;
@@ -438,18 +678,6 @@ const WordMatchingGame = ({ settings }) => {
           }
         }
         
-        /* Layout adjustments for 6-image mode */
-        .six-image-mode {
-          display: grid;
-          grid-auto-rows: 1fr;
-        }
-        
-        .six-image-mode .picture-card {
-          transform-origin: center;
-          position: absolute;
-          inset: 0;
-        }
-        
         /* Responsive grid layout */
         .pictures-grid {
           display: grid;
@@ -462,100 +690,6 @@ const WordMatchingGame = ({ settings }) => {
           gap: 0.5rem;
         }
 
-        /* Single column for 2 cards */
-        .pictures-grid.two-cards {
-          grid-template-columns: repeat(2, 1fr);
-          max-width: 900px;
-          gap: 2rem;
-          margin: 0 auto;
-        }
-        
-        /* Make 2 cards larger on bigger screens */
-        @media (min-width: 768px) {
-          .pictures-grid.two-cards {
-            grid-template-columns: repeat(2, 1fr);
-            max-width: 900px;
-            gap: 3rem;
-          }
-          
-          .pictures-grid.two-cards .picture-card {
-            max-width: 400px;
-            margin: 0 auto;
-            height: auto;
-            aspect-ratio: 16/9;
-          }
-        }
-        
-        /* Single column for 2 cards on very small screens */
-        @media (max-width: 480px) {
-          .pictures-grid.two-cards {
-            grid-template-columns: 1fr;
-            max-width: 320px;
-            gap: 1rem;
-          }
-        }
-        
-        /* 3 columns when there's enough width AND height ratio is appropriate */
-        @media (min-width: 768px) and (min-height: 600px) {
-          .pictures-grid.nine-cards,
-          .pictures-grid.six-cards,
-          .pictures-grid.eight-cards {
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.75rem;
-          }
-        }
-
-        /* Special layout for 8 cards on mobile */
-        @media (max-width: 480px) {
-          .pictures-grid.eight-cards {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.5rem;
-          }
-        }
-        
-        /* iPhone landscape mode fixes */
-        @media (max-width: 896px) and (max-height: 428px) and (orientation: landscape) {
-          .game-container {
-            padding-top: 0.5rem;
-            padding-bottom: 0.5rem;
-            height: 100vh;
-            overflow: hidden;
-          }
-          
-          .word-card {
-            min-height: 40px;
-            margin-bottom: 0.5rem;
-          }
-          
-          .word-card span {
-            font-size: clamp(1.5rem, 4vw, 2.5rem);
-          }
-          
-          .pictures-container {
-            max-height: calc(100vh - 70px);
-            overflow-y: auto;
-            padding: 0.25rem;
-            -webkit-overflow-scrolling: touch;
-            display: block !important;
-            visibility: visible !important;
-          }
-          
-          .pictures-grid {
-            gap: 0.25rem;
-            grid-template-columns: repeat(2, 1fr) !important;
-            display: grid !important;
-            visibility: visible !important;
-          }
-          
-          .picture-card {
-            aspect-ratio: 16/9;
-            height: auto !important;
-            max-height: 100px;
-            display: block !important;
-            visibility: visible !important;
-          }
-        }
-        
         /* Adjust spacing in landscape */
         @media (orientation: landscape) {
           .pictures-grid {
@@ -568,7 +702,7 @@ const WordMatchingGame = ({ settings }) => {
           .pictures-grid::-webkit-scrollbar {
             width: 8px;
           }
-          
+
           .pictures-grid::-webkit-scrollbar-track {
             background: rgba(0, 0, 0, 0.05);
             border-radius: 4px;
@@ -631,13 +765,33 @@ const WordMatchingGame = ({ settings }) => {
         }
         
         .menu-item:hover {
-          background: #f3f4f6;
+          background-color: #f5f5f5;
+        }
+        
+        .menu-item.active {
+          background-color: #f0f7ff;
+          font-weight: 500;
+        }
+        
+        .menu-item-group {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+        }
+        
+        .menu-item-header {
+          padding: 8px 16px;
+          color: #666;
+          font-size: 13px;
+          font-weight: 500;
+          text-transform: uppercase;
+          background-color: #f5f5f5;
         }
         
         .menu-divider {
           height: 1px;
-          background: #e5e7eb;
-          margin: 4px 0;
+          width: 100%;
+          background-color: #eee;
         }
 
         .game-container {
@@ -651,12 +805,12 @@ const WordMatchingGame = ({ settings }) => {
           padding-top: 2rem;
           padding-bottom: 1rem;
           position: relative;
+          justify-content: flex-start;
+          text-align: center;
         }
 
         /* Fix for picture card text display in all modes */
-        .pictures-grid.nine-cards .picture-card,
-        .pictures-grid.eight-cards .picture-card,
-        .pictures-grid.six-cards .picture-card,
+        .pictures-grid.four-cards .picture-card,
         .pictures-grid.two-cards .picture-card {
           display: flex !important;
           flex-direction: column !important;
@@ -669,56 +823,29 @@ const WordMatchingGame = ({ settings }) => {
         .picture-card > div:last-child {
           display: flex !important;
           visibility: visible !important;
-          min-height: 24px !important;
-          height: 24px !important;
+          min-height: 48px !important;
+          height: 48px !important;
           align-items: center !important;
           justify-content: center !important;
           background-color: white !important;
           color: black !important;
-          font-size: 14px !important;
-          padding: 4px !important;
+          font-size: 28px !important;
+          font-weight: 500 !important;
+          padding: 8px !important;
           border-top: 1px solid #f0f0f0 !important;
           text-align: center !important;
-        }
-        
-        /* Special handling for two cards mode - maintain consistency */
-        .pictures-grid.two-cards {
-          grid-template-columns: repeat(2, 1fr);
-          gap: 8px;
-          max-width: 800px;
-        }
-        
-        .pictures-grid.two-cards .picture-card {
-          height: auto !important;
-          max-width: 100%;
-        }
-        
-        /* Consistent styling for all picture containers */
-        .pictures-container {
-          min-height: 200px !important;
-          overflow: visible !important;
-        }
-        
-        /* Force consistent appearance in all layouts */
-        .pictures-grid.nine-cards,
-        .pictures-grid.eight-cards,
-        .pictures-grid.six-cards,
-        .pictures-grid.two-cards {
-          overflow: visible !important;
-          padding-bottom: 8px !important;
+          line-height: 1.3 !important;
         }
       `}</style>
       
       {/* Menu Button and Dropdown */}
       <div 
         className="menu-button"
-        onClick={() => setShowMenu(!showMenu)}
+        onClick={toggleMenu}
         style={{ top: '28px' }}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="4" y1="12" x2="20" y2="12"></line>
-          <line x1="4" y1="6" x2="20" y2="6"></line>
-          <line x1="4" y1="18" x2="20" y2="18"></line>
+          <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </div>
       
@@ -729,17 +856,56 @@ const WordMatchingGame = ({ settings }) => {
             onClick={() => setShowMenu(false)}
           />
           <div className="menu-dropdown">
+            <div className="menu-item" onClick={() => {
+              setupNewRound();
+              toggleMenu();
+            }}>
+              <span>New Round</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 12L20 12M20 12L14 6M20 12L14 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            
+            <div className="menu-divider"></div>
+            
             <div className="menu-item">
               <span>Number of Cards</span>
               <select 
                 value={numChoices} 
                 onChange={(e) => {
                   const newValue = parseInt(e.target.value);
+                  console.log(`Dropdown selected: ${newValue} cards (current: ${numChoices})`);
+                  
+                  // Set the manual change flag to prevent settings sync from overriding
+                  manualChoiceChange.current = true;
+                  
+                  // Update state - this will trigger the useEffect that calls setupNew
+                  setNumChoices(newValue);
+                  
+                  // Update settings if available
                   if (settings?.onSettingsChange) {
                     settings.onSettingsChange({ 
                       ...settings,
                       numChoices: newValue 
                     });
+                  } else {
+                    // Direct update without settings callback
+                    // Save to localStorage
+                    try {
+                      const savedSettings = localStorage.getItem('gameSettings');
+                      if (savedSettings) {
+                        const parsedSettings = JSON.parse(savedSettings);
+                        parsedSettings.numChoices = newValue;
+                        localStorage.setItem('gameSettings', JSON.stringify(parsedSettings));
+                      } else {
+                        localStorage.setItem('gameSettings', JSON.stringify({ numChoices: newValue }));
+                      }
+                    } catch (error) {
+                      console.error('Error updating localStorage:', error);
+                    }
+                    
+                    // We don't need to call setupNew() here anymore
+                    // The useEffect will handle it when numChoices changes
                   }
                 }}
                 className="ml-2 p-1 rounded border"
@@ -793,17 +959,26 @@ const WordMatchingGame = ({ settings }) => {
             <div className="menu-divider" />
             
             <div className="menu-item">
-              <span>Accuracy</span>
-              <span className="font-bold">{accuracy}%</span>
+              <span>Show Words on Cards</span>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showWordsOnCards}
+                  onChange={() => {
+                    console.log("Toggle button clicked in menu");
+                    toggleWordsOnCards();
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
             </div>
             
             <div className="menu-divider" />
             
             <div className="menu-item">
-              <span>Player Name</span>
-              <span className="font-bold truncate max-w-[100px]" title={settings?.playerName || "Player"}>
-                {settings?.playerName || "Player"}
-              </span>
+              <span>Accuracy</span>
+              <span className="font-bold">{accuracy}%</span>
             </div>
             
             <div className="menu-divider" />
@@ -912,50 +1087,86 @@ const WordMatchingGame = ({ settings }) => {
         </div>
         
         {/* Pictures Container with Scrolling */}
-        <div className="pictures-container">
+        <div className="pictures-container" style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           {console.log('Rendering pictures container, displayPairs:', displayPairs)}
           {/* Pictures Grid */}
-          <div 
-            className={`pictures-grid ${
-              numChoices === 9 
-                ? 'nine-cards'
-                : numChoices === 8
-                ? 'eight-cards'
-                : numChoices === 6 
-                ? 'six-cards'
-                : numChoices === 2
-                ? 'two-cards'
-                : 'grid-cols-2 gap-3 sm:gap-4'
-            }`}
-          >
-            {displayPairs.map((item, index) => {
-              console.log('Rendering picture card:', item);
-              return (
-                <PictureCard
-                  key={`${item.id}-${index}`}
-                  item={item}
-                  isIncorrect={incorrectSelections.has(item.id)}
-                  onClick={(elementRect) => handleSelection(
-                    item.id === currentWord?.id,
-                    elementRect,
-                    item
-                  )}
-                  onLongPress={() => {
-                    setZoomedImage(item);
-                    setShowZoomedImage(true);
-                    
-                    // Auto-hide after 3 seconds
-                    setTimeout(() => {
-                      setShowZoomedImage(false);
-                    }, 3000);
-                  }}
-                  disabled={isAnimating}
-                />
-              );
-            })}
+          <div className={`pictures-grid ${getGridClass()}`}>
+            {console.log('GRID RENDER with displayPairs:', displayPairs.length, 'cards,', 'grid class:', getGridClass())}
+            {displayPairs.length > 0 ? (
+              // Map each item to a PictureCard
+              displayPairs.map((item, index) => {
+                console.log(`Rendering card ${index + 1}/${displayPairs.length}: ${item.word} with showWordsOnCards=${showWordsOnCards}`);
+                return (
+                  <PictureCard
+                    key={`${item.id}-${index}`}
+                    item={item}
+                    isIncorrect={incorrectSelections.has(item.id)}
+                    onClick={(elementRect) => handleSelection(
+                      item.id === currentWord?.id,
+                      elementRect,
+                      item
+                    )}
+                    onLongPress={() => {
+                      setZoomedImage(item);
+                      setShowZoomedImage(true);
+                      
+                      // Auto-hide after 3 seconds
+                      setTimeout(() => {
+                        setShowZoomedImage(false);
+                      }, 3000);
+                    }}
+                    disabled={isAnimating}
+                    showWords={showWordsOnCards}
+                  />
+                );
+              })
+            ) : (
+              // If no items, show a loading message
+              <div className="col-span-full text-center py-8">
+                <p>Loading cards...</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Footer Debug Area - with more reliable state display */}
+      {process.env.NODE_ENV !== 'production' && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '10px',
+            right: '10px',
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            color: 'white',
+            padding: '10px',
+            borderRadius: '5px',
+            fontSize: '12px',
+            zIndex: 1000,
+          }}
+        >
+          <div>Words Visible: <span style={{color: showWordsOnCards ? '#5f5' : '#f55', fontWeight: 'bold'}}>{String(showWordsOnCards)} ({showWordsOnCards ? 'YES' : 'NO'})</span></div>
+          <div>Num Choices: {numChoices}</div>
+          <div>Sound: {settings?.soundEnabled !== false ? 'ON' : 'OFF'}</div>
+          <button
+            style={{
+              backgroundColor: '#2196F3',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '5px 10px',
+              marginTop: '5px',
+              cursor: 'pointer',
+            }}
+            onClick={() => {
+              console.log("Debug toggle button clicked");
+              toggleWordsOnCards();
+            }}
+          >
+            Debug: Toggle Words
+          </button>
+        </div>
+      )}
     </div>
   );
 };

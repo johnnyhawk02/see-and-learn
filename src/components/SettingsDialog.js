@@ -5,6 +5,7 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
   const [playerName, setPlayerName] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [numChoices, setNumChoices] = useState(4);
+  const [showWordsOnCards, setShowWordsOnCards] = useState(true);
   const [isPreloading, setIsPreloading] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState(0);
 
@@ -15,7 +16,10 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
       const settings = JSON.parse(savedSettings);
       setPlayerName(settings.playerName || '');
       setSoundEnabled(settings.soundEnabled !== false);
-      setNumChoices(settings.numChoices || 4);
+      // Ensure we only use 2 or 4 choices
+      const savedChoices = settings.numChoices || 4;
+      setNumChoices(savedChoices === 2 ? 2 : 4);
+      setShowWordsOnCards(settings.showWordsOnCards !== false);
     }
   }, []);
 
@@ -23,11 +27,12 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     const settings = {
       playerName,
       soundEnabled,
-      numChoices
+      numChoices,
+      showWordsOnCards,
     };
-    
     localStorage.setItem('gameSettings', JSON.stringify(settings));
     onSave(settings);
+    onClose();
   };
 
   const preloadResources = async () => {
@@ -186,62 +191,6 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
           </button>
         </div>
         
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="playerName">
-            Player Name
-          </label>
-          <input
-            id="playerName"
-            type="text"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            placeholder="Enter your name"
-            maxLength={20}
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            We'll use this to personalize your game experience
-          </p>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Number of Choices
-          </label>
-          <div className="flex space-x-4">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                checked={numChoices === 4}
-                onChange={() => setNumChoices(4)}
-                className="form-radio h-5 w-5 text-blue-600"
-              />
-              <span className="ml-2 text-gray-700">4 Choices (Easier)</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                checked={numChoices === 6}
-                onChange={() => setNumChoices(6)}
-                className="form-radio h-5 w-5 text-blue-600"
-              />
-              <span className="ml-2 text-gray-700">6 Choices (Harder)</span>
-            </label>
-          </div>
-        </div>
-        
-        <div className="mb-6">
-          <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={soundEnabled}
-              onChange={(e) => setSoundEnabled(e.target.checked)}
-              className="form-checkbox h-5 w-5 text-blue-600"
-            />
-            <span className="ml-2 text-gray-700">Enable Sound</span>
-          </label>
-        </div>
-
         <div className="mb-6">
           <button
             onClick={preloadResources}
@@ -273,7 +222,7 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
             onClick={handleSave}
             className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
           >
-            Save Settings
+            Start Game
           </button>
         </div>
       </div>
