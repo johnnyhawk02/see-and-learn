@@ -287,15 +287,7 @@ const WordMatchingGame = ({ settings }) => {
   const accuracy = totalAttempts > 0 ? Math.round((correctAnswers / totalAttempts) * 100) : 0;
 
   return (
-    <div className={`flex flex-col justify-start items-center w-full bg-gradient-to-b from-blue-50 to-indigo-100 ${
-      numChoices > 4 ? 'pt-8 sm:pt-10 p-1 sm:p-2' : 'pt-8 sm:pt-10 p-2 sm:p-4'
-    }`}
-    style={{
-      minHeight: '100vh',
-      height: '100vh',
-      maxHeight: '100vh',
-      overflow: 'hidden'
-    }}>
+    <div className="game-container pt-8 sm:pt-10 px-4 sm:px-6">
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=ABeeZee:ital@0;1&display=swap');
         
@@ -357,6 +349,17 @@ const WordMatchingGame = ({ settings }) => {
           position: relative;
           z-index: 10;
           display: block;
+          display: flex;
+          justify-content: center;
+        }
+        
+        /* Pictures grid */
+        .pictures-grid {
+          display: grid;
+          gap: 0.5rem;
+          width: 100%;
+          max-width: 900px;
+          margin: 0 auto;
         }
         
         /* Better word card styling */
@@ -366,6 +369,10 @@ const WordMatchingGame = ({ settings }) => {
           align-items: center;
           min-height: 80px;
           padding: 0.5rem;
+          width: 100%;
+          max-width: 900px;
+          margin: 0 auto;
+          text-align: center;
         }
         
         @media (orientation: portrait) {
@@ -555,6 +562,19 @@ const WordMatchingGame = ({ settings }) => {
           background: #e5e7eb;
           margin: 4px 0;
         }
+
+        .game-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          width: 100%;
+          height: 100vh;
+          max-height: 100vh;
+          overflow: hidden;
+          padding-top: 2rem;
+          padding-bottom: 1rem;
+          position: relative;
+        }
       `}</style>
       
       {/* Menu Button and Dropdown */}
@@ -743,54 +763,56 @@ const WordMatchingGame = ({ settings }) => {
         </div>
       )}
       
-      {/* Word Card */}
-      <div className="word-card w-full max-w-4xl mb-4 sm:mb-6">
-        <span className="text-4xl sm:text-5xl md:text-6xl font-bold text-center">
-          {currentWord?.word}
-        </span>
-      </div>
-      
-      {/* Pictures Container with Scrolling */}
-      <div className="pictures-container">
-        {console.log('Rendering pictures container, displayPairs:', displayPairs)}
-        {/* Pictures Grid */}
-        <div 
-          className={`pictures-grid w-full max-w-4xl ${
-            numChoices === 9 
-              ? 'nine-cards'
-              : numChoices === 8
-              ? 'eight-cards'
-              : numChoices === 6 
-              ? 'six-cards'
-              : numChoices === 2
-              ? 'two-cards'
-              : 'grid-cols-2 gap-3 sm:gap-4'
-          }`}
-        >
-          {displayPairs.map((item, index) => {
-            console.log('Rendering picture card:', item);
-            return (
-              <PictureCard
-                key={`${item.id}-${index}`}
-                item={item}
-                onClick={(elementRect) => handleSelection(
-                  item.id === currentWord?.id,
-                  elementRect,
-                  item
-                )}
-                onLongPress={() => {
-                  setZoomedImage(item);
-                  setShowZoomedImage(true);
-                  
-                  // Auto-hide after 3 seconds
-                  setTimeout(() => {
-                    setShowZoomedImage(false);
-                  }, 3000);
-                }}
-                disabled={isAnimating}
-              />
-            );
-          })}
+      <div className="game-content w-full max-w-4xl mx-auto flex flex-col items-center">
+        {/* Word Card */}
+        <div className="word-card mb-4 sm:mb-6">
+          <span className="text-4xl sm:text-5xl md:text-6xl font-bold text-center">
+            {currentWord?.word}
+          </span>
+        </div>
+        
+        {/* Pictures Container with Scrolling */}
+        <div className="pictures-container">
+          {console.log('Rendering pictures container, displayPairs:', displayPairs)}
+          {/* Pictures Grid */}
+          <div 
+            className={`pictures-grid ${
+              numChoices === 9 
+                ? 'nine-cards'
+                : numChoices === 8
+                ? 'eight-cards'
+                : numChoices === 6 
+                ? 'six-cards'
+                : numChoices === 2
+                ? 'two-cards'
+                : 'grid-cols-2 gap-3 sm:gap-4'
+            }`}
+          >
+            {displayPairs.map((item, index) => {
+              console.log('Rendering picture card:', item);
+              return (
+                <PictureCard
+                  key={`${item.id}-${index}`}
+                  item={item}
+                  onClick={(elementRect) => handleSelection(
+                    item.id === currentWord?.id,
+                    elementRect,
+                    item
+                  )}
+                  onLongPress={() => {
+                    setZoomedImage(item);
+                    setShowZoomedImage(true);
+                    
+                    // Auto-hide after 3 seconds
+                    setTimeout(() => {
+                      setShowZoomedImage(false);
+                    }, 3000);
+                  }}
+                  disabled={isAnimating}
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
