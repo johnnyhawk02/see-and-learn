@@ -36,6 +36,16 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     
     const totalResources = allPairs.length * 2 + 20; // Images + audio + praise sounds
     let loadedResources = 0;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const AUDIO_TIMEOUT = 5000; // 5 seconds timeout for audio loading
+    
+    // Helper function to update progress
+    const updateProgress = () => {
+      loadedResources++;
+      const percentage = Math.round((loadedResources / totalResources) * 100);
+      setPreloadProgress(percentage);
+      console.log(`Preloading progress: ${percentage}%`);
+    };
     
     try {
       // Preload all images
@@ -43,48 +53,99 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
         return new Promise((resolve, reject) => {
           const img = new Image();
           img.onload = () => {
-            loadedResources++;
-            setPreloadProgress(Math.round((loadedResources / totalResources) * 100));
+            updateProgress();
             resolve();
           };
           img.onerror = (error) => {
             console.error(`Error loading image: ${pair.image}`, error);
-            reject(error);
+            updateProgress(); // Still increment to avoid getting stuck
+            resolve(); // Resolve anyway to continue preloading
           };
           // Use the direct path from public folder
           img.src = `/${pair.image}`;
         });
       });
 
-      // Preload all word audio
+      // Preload all word audio - with timeout for mobile
       const wordAudioPromises = allPairs.map(pair => {
-        return new Promise((resolve, reject) => {
-          const audio = new Audio(`/sounds/vocabulary/${pair.word}.wav`);
+        return new Promise((resolve) => {
+          const audio = new Audio();
+          
+          // Safety timeout for mobile devices
+          const timeoutId = setTimeout(() => {
+            console.log(`Audio timeout for word: ${pair.word}`);
+            updateProgress();
+            resolve();
+          }, AUDIO_TIMEOUT);
+          
           audio.oncanplaythrough = () => {
-            loadedResources++;
-            setPreloadProgress(Math.round((loadedResources / totalResources) * 100));
+            clearTimeout(timeoutId);
+            updateProgress();
             resolve();
           };
+          
           audio.onerror = (error) => {
+            clearTimeout(timeoutId);
             console.error(`Error loading audio: /sounds/vocabulary/${pair.word}.wav`, error);
-            reject(error);
+            updateProgress(); // Still increment to avoid getting stuck
+            resolve(); // Resolve anyway to continue preloading
           };
+          
+          // For mobile: preload as blob first for better reliability
+          if (isMobile) {
+            fetch(`/sounds/vocabulary/${pair.word}.wav`)
+              .then(response => response.blob())
+              .then(blob => {
+                audio.src = URL.createObjectURL(blob);
+              })
+              .catch(() => {
+                audio.src = `/sounds/vocabulary/${pair.word}.wav`;
+              });
+          } else {
+            audio.src = `/sounds/vocabulary/${pair.word}.wav`;
+          }
         });
       });
 
-      // Preload praise audio
+      // Preload praise audio - with timeout for mobile
       const praiseAudioPromises = Array.from({ length: 20 }, (_, i) => {
-        return new Promise((resolve, reject) => {
-          const audio = new Audio(`/sounds/praise/praise${String(i + 1).padStart(2, '0')}.wav`);
+        return new Promise((resolve) => {
+          const audio = new Audio();
+          const praiseFile = `/sounds/praise/praise${String(i + 1).padStart(2, '0')}.wav`;
+          
+          // Safety timeout for mobile devices
+          const timeoutId = setTimeout(() => {
+            console.log(`Audio timeout for praise: ${i + 1}`);
+            updateProgress();
+            resolve();
+          }, AUDIO_TIMEOUT);
+          
           audio.oncanplaythrough = () => {
-            loadedResources++;
-            setPreloadProgress(Math.round((loadedResources / totalResources) * 100));
+            clearTimeout(timeoutId);
+            updateProgress();
             resolve();
           };
+          
           audio.onerror = (error) => {
-            console.error(`Error loading praise audio: /sounds/praise/praise${String(i + 1).padStart(2, '0')}.wav`, error);
-            reject(error);
+            clearTimeout(timeoutId);
+            console.error(`Error loading praise audio: ${praiseFile}`, error);
+            updateProgress(); // Still increment to avoid getting stuck
+            resolve(); // Resolve anyway to continue preloading
           };
+          
+          // For mobile: preload as blob first for better reliability
+          if (isMobile) {
+            fetch(praiseFile)
+              .then(response => response.blob())
+              .then(blob => {
+                audio.src = URL.createObjectURL(blob);
+              })
+              .catch(() => {
+                audio.src = praiseFile;
+              });
+          } else {
+            audio.src = praiseFile;
+          }
         });
       });
 

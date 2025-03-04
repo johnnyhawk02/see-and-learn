@@ -23,6 +23,11 @@ const PRECACHE_ASSETS = [
   '/icons/icon-512x512.png',
 ];
 
+// Detect if it's a mobile user agent
+const isMobileUserAgent = (userAgent) => {
+  return /iPhone|iPad|iPod|Android/i.test(userAgent);
+};
+
 // Install event - precache static assets
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -59,9 +64,18 @@ self.addEventListener('fetch', event => {
     event.request.url.includes('/images/') || 
     event.request.url.includes('/sounds/vocabulary/') ||
     event.request.url.includes('/sounds/praise/');
+  
+  // Detect if this is an audio resource
+  const isAudioResource = 
+    event.request.url.includes('/sounds/vocabulary/') ||
+    event.request.url.includes('/sounds/praise/');
 
   event.respondWith(
     (async () => {
+      // Check if the client is mobile
+      const client = await clients.get(event.clientId);
+      const isMobile = client ? isMobileUserAgent(client.userAgent) : false;
+      
       // For preloaded resources, try cache first
       if (isPreloadedResource) {
         const preloadCache = await caches.open(PRELOAD_CACHE);
@@ -73,6 +87,29 @@ self.addEventListener('fetch', event => {
 
       // For all other requests, try network first
       try {
+        // Special handling for audio files on mobile
+        if (isMobile && isAudioResource) {
+          // Force a timeout for audio requests on mobile to prevent hanging
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Request timeout')), 8000);
+          });
+          
+          const fetchPromise = fetch(event.request);
+          const response = await Promise.race([fetchPromise, timeoutPromise])
+            .catch(() => {
+              console.log('Audio request timeout on mobile, serving from cache if available');
+              return caches.match(event.request);
+            });
+            
+          if (response && response.status === 200) {
+            const cache = await caches.open(PRELOAD_CACHE);
+            cache.put(event.request, response.clone());
+          }
+          
+          return response || new Response('Not found', { status: 404 });
+        }
+        
+        // Standard handling for other resources
         const response = await fetch(event.request);
         if (response.status === 200) {
           const cache = await caches.open(
@@ -106,5 +143,47 @@ self.addEventListener('fetch', event => {
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+});
+
+// Handle range requests for audio/video
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  
+  // Only handle range requests for audio files
+  if (event.request.headers.has('range') && 
+      (url.pathname.endsWith('.wav') || url.pathname.endsWith('.mp3'))) {
+    
+    event.respondWith(
+      caches.open(PRELOAD_CACHE).then(async cache => {
+        // Try to find a cached response
+        const cachedResponse = await cache.match(event.request.url);
+        if (!cachedResponse) {
+          // If not in cache, fetch from network
+          return fetch(event.request);
+        }
+        
+        // Extract the required range from the request
+        const rangeHeader = event.request.headers.get('range');
+        const rangeMatch = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+        const start = parseInt(rangeMatch[1], 10);
+        const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : cachedResponse.blob().then(blob => blob.size - 1);
+        
+        // Clone the response and create a new response with the requested range
+        return cachedResponse.blob().then(blob => {
+          const slicedBlob = blob.slice(start, end + 1);
+          const slicedResponse = new Response(slicedBlob, {
+            status: 206,
+            statusText: 'Partial Content',
+            headers: new Headers({
+              'Content-Type': cachedResponse.headers.get('Content-Type'),
+              'Content-Range': `bytes ${start}-${end}/${blob.size}`,
+              'Content-Length': slicedBlob.size
+            })
+          });
+          return slicedResponse;
+        });
+      }).catch(() => fetch(event.request))
+    );
   }
 }); 
