@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { allPairs } from '../data/gameData';
 
 const SettingsDialog = ({ isOpen, onClose, onSave }) => {
   const [playerName, setPlayerName] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [numChoices, setNumChoices] = useState(4);
+  const [isPreloading, setIsPreloading] = useState(false);
+  const [preloadProgress, setPreloadProgress] = useState(0);
 
   // Load saved settings when component mounts
   useEffect(() => {
@@ -25,6 +28,74 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     
     localStorage.setItem('gameSettings', JSON.stringify(settings));
     onSave(settings);
+  };
+
+  const preloadResources = async () => {
+    setIsPreloading(true);
+    setPreloadProgress(0);
+    
+    const totalResources = allPairs.length * 2 + 20; // Images + audio + praise sounds
+    let loadedResources = 0;
+    
+    try {
+      // Preload all images
+      const imagePromises = allPairs.map(pair => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => {
+            loadedResources++;
+            setPreloadProgress(Math.round((loadedResources / totalResources) * 100));
+            resolve();
+          };
+          img.onerror = reject;
+          img.src = `/images/${pair.image}`;
+        });
+      });
+
+      // Preload all word audio
+      const wordAudioPromises = allPairs.map(pair => {
+        return new Promise((resolve, reject) => {
+          const audio = new Audio(`/sounds/vocabulary/${pair.word}.wav`);
+          audio.oncanplaythrough = () => {
+            loadedResources++;
+            setPreloadProgress(Math.round((loadedResources / totalResources) * 100));
+            resolve();
+          };
+          audio.onerror = reject;
+        });
+      });
+
+      // Preload praise audio
+      const praiseAudioPromises = Array.from({ length: 20 }, (_, i) => {
+        return new Promise((resolve, reject) => {
+          const audio = new Audio(`/sounds/praise/praise${String(i + 1).padStart(2, '0')}.wav`);
+          audio.oncanplaythrough = () => {
+            loadedResources++;
+            setPreloadProgress(Math.round((loadedResources / totalResources) * 100));
+            resolve();
+          };
+          audio.onerror = reject;
+        });
+      });
+
+      // Wait for all resources to load
+      await Promise.all([
+        ...imagePromises,
+        ...wordAudioPromises,
+        ...praiseAudioPromises
+      ]);
+
+      // Cache success status
+      localStorage.setItem('resourcesPreloaded', 'true');
+      
+      alert('All resources have been preloaded successfully!');
+    } catch (error) {
+      console.error('Error preloading resources:', error);
+      alert('There was an error preloading some resources. Please try again.');
+    } finally {
+      setIsPreloading(false);
+      setPreloadProgress(0);
+    }
   };
 
   if (!isOpen) return null;
@@ -98,6 +169,26 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
             />
             <span className="ml-2 text-gray-700">Enable Sound</span>
           </label>
+        </div>
+
+        <div className="mb-6">
+          <button
+            onClick={preloadResources}
+            disabled={isPreloading}
+            className={`w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded ${isPreloading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {isPreloading ? (
+              <div className="flex items-center justify-center">
+                <span className="mr-2">Preloading... {preloadProgress}%</span>
+                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+              </div>
+            ) : (
+              'Preload All Resources for Offline Use'
+            )}
+          </button>
+          <p className="text-xs text-gray-500 mt-1">
+            This will download all images and sounds for offline use
+          </p>
         </div>
         
         <div className="flex justify-end">

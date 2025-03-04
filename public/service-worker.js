@@ -1,6 +1,7 @@
 // Cache names
 const CACHE_NAME = 'see-and-learn-cache-v1';
 const RUNTIME_CACHE = 'see-and-learn-runtime-v1';
+const PRELOAD_CACHE = 'see-and-learn-preload-v1';
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
@@ -36,7 +37,7 @@ self.addEventListener('install', event => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', event => {
-  const currentCaches = [CACHE_NAME, RUNTIME_CACHE];
+  const currentCaches = [CACHE_NAME, RUNTIME_CACHE, PRELOAD_CACHE];
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return cacheNames.filter(cacheName => !currentCaches.includes(cacheName));
@@ -48,44 +49,57 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch event - network-first strategy with fallback to cache
+// Fetch event - cache-first for preloaded resources, network-first for others
 self.addEventListener('fetch', event => {
   // Skip cross-origin requests
-  if (event.request.url.startsWith(self.location.origin)) {
-    event.respondWith(
-      // Try network first
-      fetch(event.request)
-        .then(response => {
-          // Cache successful responses
-          if (response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(RUNTIME_CACHE).then(cache => {
-              cache.put(event.request, responseClone);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // Fallback to cache if network fails
-          return caches.match(event.request).then(cachedResponse => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            
-            // For navigation requests, fallback to offline.html
-            if (event.request.mode === 'navigate') {
-              return caches.match('/offline.html');
-            }
-            
-            // Return 404 for uncached assets
-            return new Response('Not found', {
-              status: 404,
-              statusText: 'Not found'
-            });
-          });
-        })
-    );
-  }
+  if (!event.request.url.startsWith(self.location.origin)) return;
+
+  // Check if this is a preloaded resource
+  const isPreloadedResource = 
+    event.request.url.includes('/images/') || 
+    event.request.url.includes('/sounds/vocabulary/') ||
+    event.request.url.includes('/sounds/praise/');
+
+  event.respondWith(
+    (async () => {
+      // For preloaded resources, try cache first
+      if (isPreloadedResource) {
+        const preloadCache = await caches.open(PRELOAD_CACHE);
+        const cachedResponse = await preloadCache.match(event.request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+      }
+
+      // For all other requests, try network first
+      try {
+        const response = await fetch(event.request);
+        if (response.status === 200) {
+          const cache = await caches.open(
+            isPreloadedResource ? PRELOAD_CACHE : RUNTIME_CACHE
+          );
+          cache.put(event.request, response.clone());
+        }
+        return response;
+      } catch (error) {
+        const cachedResponse = await caches.match(event.request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        
+        // For navigation requests, fallback to offline.html
+        if (event.request.mode === 'navigate') {
+          return caches.match('/offline.html');
+        }
+        
+        // Return 404 for uncached assets
+        return new Response('Not found', {
+          status: 404,
+          statusText: 'Not found'
+        });
+      }
+    })()
+  );
 });
 
 // Handle messages from clients
