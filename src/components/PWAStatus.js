@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 
 const PWAStatus = () => {
   const [installPrompt, setInstallPrompt] = useState(null);
-  const [isInstalled, setIsInstalled] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
@@ -22,7 +21,6 @@ const PWAStatus = () => {
 
     // Listen for app installed event
     const handleAppInstalled = () => {
-      setIsInstalled(true);
       setInstallPrompt(null);
       console.log('PWA was installed');
     };

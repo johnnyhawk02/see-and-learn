@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import WordMatchingGame from './components/WordMatchingGame';
-import SettingsButton from './components/SettingsButton';
 import SettingsDialog from './components/SettingsDialog';
 import PWAUpdateNotification from './components/PWAUpdateNotification';
 import PWAStatus from './components/PWAStatus';
