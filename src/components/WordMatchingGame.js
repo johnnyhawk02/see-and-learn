@@ -413,9 +413,35 @@ const WordMatchingGame = ({ settings }) => {
 
         /* Single column for 2 cards */
         .pictures-grid.two-cards {
-          grid-template-columns: 1fr;
-          max-width: 300px;
+          grid-template-columns: repeat(2, 1fr);
+          max-width: 900px;
+          gap: 2rem;
           margin: 0 auto;
+        }
+        
+        /* Make 2 cards larger on bigger screens */
+        @media (min-width: 768px) {
+          .pictures-grid.two-cards {
+            grid-template-columns: repeat(2, 1fr);
+            max-width: 900px;
+            gap: 3rem;
+          }
+          
+          .pictures-grid.two-cards .picture-card {
+            max-width: 400px;
+            margin: 0 auto;
+            height: auto;
+            aspect-ratio: 16/9;
+          }
+        }
+        
+        /* Single column for 2 cards on very small screens */
+        @media (max-width: 480px) {
+          .pictures-grid.two-cards {
+            grid-template-columns: 1fr;
+            max-width: 320px;
+            gap: 1rem;
+          }
         }
         
         /* 3 columns when there's enough width AND height ratio is appropriate */

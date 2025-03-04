@@ -6,6 +6,7 @@ const PictureCard = ({ item, onClick, onLongPress, disabled }) => {
   
   const [isLoaded, setIsLoaded] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const longPressTimer = useRef(null);
   const cardRef = useRef(null);
 
@@ -75,12 +76,19 @@ const PictureCard = ({ item, onClick, onLongPress, disabled }) => {
       className="picture-card relative rounded-lg overflow-hidden shadow-md cursor-pointer"
       style={{
         aspectRatio: '16/9',
-        transform: isPressed ? 'scale(0.95)' : 'scale(1)',
-        transition: 'transform 0.1s ease-out',
         backgroundColor: '#f0f0f0',
         width: '100%',
         height: 'auto',
-        minHeight: '80px'
+        minHeight: '80px',
+        boxShadow: isHovered 
+          ? '0 10px 15px rgba(0, 0, 0, 0.15)' 
+          : '0 4px 6px rgba(0, 0, 0, 0.1)',
+        transform: isPressed 
+          ? 'scale(0.97)' 
+          : isHovered 
+            ? 'scale(1.02)' 
+            : 'scale(1)',
+        transition: 'transform 0.2s ease-out, box-shadow 0.2s ease-out',
       }}
       onClick={handleClick}
       onTouchStart={handleTouchStart}
@@ -89,7 +97,11 @@ const PictureCard = ({ item, onClick, onLongPress, disabled }) => {
       onMouseUp={handleTouchEnd}
       onMouseLeave={() => {
         setIsPressed(false);
+        setIsHovered(false);
         clearTimeout(longPressTimer.current);
+      }}
+      onMouseEnter={() => {
+        setIsHovered(true);
       }}
     >
       {/* Loading placeholder */}
