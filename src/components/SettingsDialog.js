@@ -47,8 +47,12 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
             setPreloadProgress(Math.round((loadedResources / totalResources) * 100));
             resolve();
           };
-          img.onerror = reject;
-          img.src = `/images/${pair.image}`;
+          img.onerror = (error) => {
+            console.error(`Error loading image: ${pair.image}`, error);
+            reject(error);
+          };
+          // Use the direct path from public folder
+          img.src = `/${pair.image}`;
         });
       });
 
@@ -61,7 +65,10 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
             setPreloadProgress(Math.round((loadedResources / totalResources) * 100));
             resolve();
           };
-          audio.onerror = reject;
+          audio.onerror = (error) => {
+            console.error(`Error loading audio: /sounds/vocabulary/${pair.word}.wav`, error);
+            reject(error);
+          };
         });
       });
 
@@ -74,7 +81,10 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
             setPreloadProgress(Math.round((loadedResources / totalResources) * 100));
             resolve();
           };
-          audio.onerror = reject;
+          audio.onerror = (error) => {
+            console.error(`Error loading praise audio: /sounds/praise/praise${String(i + 1).padStart(2, '0')}.wav`, error);
+            reject(error);
+          };
         });
       });
 
