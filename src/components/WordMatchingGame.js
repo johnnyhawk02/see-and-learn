@@ -16,6 +16,8 @@ const WordMatchingGame = ({ settings }) => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [numChoices, setNumChoices] = useState(settings?.numChoices || 4);
   const [showMenu, setShowMenu] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [isIPadDevice, setIsIPadDevice] = useState(false);
 
   // Direct audio references to avoid queue complications
   const [currentAudio, setCurrentAudio] = useState(null);
@@ -40,6 +42,8 @@ const WordMatchingGame = ({ settings }) => {
     setShowZoomedImage(false);
     
     try {
+      console.log('Setting up new round with numChoices:', numChoices);
+      
       // Get all available pairs
       const availablePairs = [...allPairs];
       
@@ -58,6 +62,8 @@ const WordMatchingGame = ({ settings }) => {
       
       // Combine and shuffle display order
       const roundPairs = shuffleArray([targetWord, ...otherWords]);
+      
+      console.log('Round pairs:', roundPairs);
       
       // Update state
       setDisplayPairs(roundPairs);
@@ -102,6 +108,25 @@ const WordMatchingGame = ({ settings }) => {
     
     return () => clearTimeout(timer);
   }, [numChoices, setupNewRound]);
+
+  // Detect device type on mount
+  useEffect(() => {
+    const checkDeviceType = () => {
+      // Check for iPad specifically
+      const isIPad = /iPad/i.test(navigator.userAgent) || 
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1 && window.innerWidth >= 768 && window.innerWidth <= 1024);
+      
+      // Check for mobile phones (iPhone, Android phones)
+      const isMobile = /iPhone|Android/i.test(navigator.userAgent) && window.innerWidth <= 480;
+      
+      setIsIPadDevice(isIPad);
+      setIsMobileDevice(isMobile);
+    };
+    
+    checkDeviceType();
+    window.addEventListener('resize', checkDeviceType);
+    return () => window.removeEventListener('resize', checkDeviceType);
+  }, []);
 
   // Basic function to speak a word
   const speakWord = (word) => {
@@ -320,6 +345,20 @@ const WordMatchingGame = ({ settings }) => {
           border-radius: 0.5rem;
         }
         
+        /* Pictures container */
+        .pictures-container {
+          width: 100%;
+          max-width: 1200px;
+          padding: 0.5rem;
+          max-height: calc(100vh - 120px);
+          overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+          position: relative;
+          z-index: 10;
+          display: block;
+        }
+        
         /* Better word card styling */
         .word-card {
           display: flex;
@@ -364,13 +403,72 @@ const WordMatchingGame = ({ settings }) => {
           grid-template-columns: repeat(2, 1fr);
           gap: 0.5rem;
         }
+
+        /* Single column for 2 cards */
+        .pictures-grid.two-cards {
+          grid-template-columns: 1fr;
+          max-width: 300px;
+          margin: 0 auto;
+        }
         
         /* 3 columns when there's enough width AND height ratio is appropriate */
         @media (min-width: 768px) and (min-height: 600px) {
           .pictures-grid.nine-cards,
-          .pictures-grid.six-cards {
+          .pictures-grid.six-cards,
+          .pictures-grid.eight-cards {
             grid-template-columns: repeat(3, 1fr);
             gap: 0.75rem;
+          }
+        }
+
+        /* Special layout for 8 cards on mobile */
+        @media (max-width: 480px) {
+          .pictures-grid.eight-cards {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+          }
+        }
+        
+        /* iPhone landscape mode fixes */
+        @media (max-width: 896px) and (max-height: 428px) and (orientation: landscape) {
+          .game-container {
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+            height: 100vh;
+            overflow: hidden;
+          }
+          
+          .word-card {
+            min-height: 40px;
+            margin-bottom: 0.5rem;
+          }
+          
+          .word-card span {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+          }
+          
+          .pictures-container {
+            max-height: calc(100vh - 70px);
+            overflow-y: auto;
+            padding: 0.25rem;
+            -webkit-overflow-scrolling: touch;
+            display: block !important;
+            visibility: visible !important;
+          }
+          
+          .pictures-grid {
+            gap: 0.25rem;
+            grid-template-columns: repeat(2, 1fr) !important;
+            display: grid !important;
+            visibility: visible !important;
+          }
+          
+          .picture-card {
+            aspect-ratio: 16/9;
+            height: auto !important;
+            max-height: 100px;
+            display: block !important;
+            visibility: visible !important;
           }
         }
         
@@ -494,9 +592,27 @@ const WordMatchingGame = ({ settings }) => {
                 }}
                 className="ml-2 p-1 rounded border"
               >
-                <option value={4}>4 Cards</option>
-                <option value={6}>6 Cards</option>
-                <option value={9}>9 Cards</option>
+                {isMobileDevice ? (
+                  <>
+                    <option value={2}>2 Cards</option>
+                    <option value={4}>4 Cards</option>
+                    <option value={6}>6 Cards</option>
+                    <option value={8}>8 Cards</option>
+                  </>
+                ) : isIPadDevice || !isMobileDevice ? (
+                  <>
+                    <option value={2}>2 Cards</option>
+                    <option value={4}>4 Cards</option>
+                    <option value={6}>6 Cards</option>
+                    <option value={9}>9 Cards</option>
+                  </>
+                ) : (
+                  <>
+                    <option value={4}>4 Cards</option>
+                    <option value={6}>6 Cards</option>
+                    <option value={9}>9 Cards</option>
+                  </>
+                )}
               </select>
             </div>
             
@@ -628,66 +744,54 @@ const WordMatchingGame = ({ settings }) => {
       )}
       
       {/* Word Card */}
-      <div className={`w-full max-w-4xl flex-shrink-0 ${
-        numChoices === 6 ? 'mb-2 sm:mb-3' : 'mb-3 sm:mb-4'
-      }`}>
-        {currentWord && (
-          <WordCard 
-            item={currentWord} 
-            onSpeak={() => speakWord(currentWord.word)} 
-            size={numChoices === 6 ? 'compact' : 'normal'}
-          />
-        )}
+      <div className="word-card w-full max-w-4xl mb-4 sm:mb-6">
+        <span className="text-4xl sm:text-5xl md:text-6xl font-bold text-center">
+          {currentWord?.word}
+        </span>
       </div>
       
-      {/* Pictures Grid */}
-      <div 
-        className={`pictures-grid w-full max-w-4xl ${
-          numChoices === 9 
-            ? 'nine-cards'
-            : numChoices === 6 
-            ? 'six-cards'
-            : 'grid-cols-2 gap-3 sm:gap-4'
-        }`}
-        style={{
-          alignItems: 'start',
-          gridAutoRows: 'auto'
-        }}
-      >
-        {displayPairs && displayPairs.length > 0 ? (
-          displayPairs.map((item, index) => (
-            <div 
-              className="relative w-full" 
-              key={item.id} 
-              style={{ 
-                paddingTop: '56.25%', // 16:9 aspect ratio
-                animation: `fadeIn 0.2s ease-out ${index * (numChoices === 6 ? 0.05 : 0.1)}s both`
-              }}
-            >
-              <div className="absolute inset-0">
-                <PictureCard 
-                  item={item} 
-                  onSelect={handleSelection} 
-                  currentWordId={currentWord?.id}
-                  isAnimating={isAnimating}
-                  className="picture-card h-full w-full"
-                />
-              </div>
-            </div>
-          ))
-        ) : (
-          // Placeholder cards
-          [...Array(numChoices)].map((_, i) => (
-            <div 
-              key={i} 
-              className="relative w-full rounded-lg bg-gray-200 shadow-md" 
-              style={{ 
-                paddingTop: '56.25%', // 16:9 aspect ratio
-                animation: `fadeIn 0.3s ease-out ${i * (numChoices === 6 ? 0.05 : 0.1)}s both`
-              }}
-            />
-          ))
-        )}
+      {/* Pictures Container with Scrolling */}
+      <div className="pictures-container">
+        {console.log('Rendering pictures container, displayPairs:', displayPairs)}
+        {/* Pictures Grid */}
+        <div 
+          className={`pictures-grid w-full max-w-4xl ${
+            numChoices === 9 
+              ? 'nine-cards'
+              : numChoices === 8
+              ? 'eight-cards'
+              : numChoices === 6 
+              ? 'six-cards'
+              : numChoices === 2
+              ? 'two-cards'
+              : 'grid-cols-2 gap-3 sm:gap-4'
+          }`}
+        >
+          {displayPairs.map((item, index) => {
+            console.log('Rendering picture card:', item);
+            return (
+              <PictureCard
+                key={`${item.id}-${index}`}
+                item={item}
+                onClick={(elementRect) => handleSelection(
+                  item.id === currentWord?.id,
+                  elementRect,
+                  item
+                )}
+                onLongPress={() => {
+                  setZoomedImage(item);
+                  setShowZoomedImage(true);
+                  
+                  // Auto-hide after 3 seconds
+                  setTimeout(() => {
+                    setShowZoomedImage(false);
+                  }, 3000);
+                }}
+                disabled={isAnimating}
+              />
+            );
+          })}
+        </div>
       </div>
     </div>
   );
