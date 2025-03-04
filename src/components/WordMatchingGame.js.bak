@@ -348,69 +348,25 @@ const WordMatchingGame = ({ settings }) => {
         .pictures-container {
           width: 100%;
           max-width: 1200px;
-          padding: 0.25rem;
+          padding: 0.5rem;
           max-height: calc(100vh - 120px);
           overflow-y: auto;
-          -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+          position: relative;
+          z-index: 10;
+          display: block;
+          display: flex;
+          justify-content: center;
         }
         
-        /* Base grid layout for all modes */
+        /* Pictures grid */
         .pictures-grid {
           display: grid;
+          gap: 0.5rem;
           width: 100%;
           max-width: 900px;
           margin: 0 auto;
-          grid-gap: 4px; /* Smaller gap to allow more space for content */
-        }
-        
-        /* Picture card base styles for all modes */
-        .picture-card {
-          width: 100%;
-          height: auto;
-          max-height: none;
-          display: flex !important;
-          flex-direction: column !important;
-          overflow: hidden;
-        }
-        
-        /* Nine cards layout (3x3 on larger screens, 2x5 on smaller) */
-        .pictures-grid.nine-cards {
-          grid-template-columns: repeat(3, 1fr);
-        }
-        
-        /* Eight cards layout (2x4 on all screens) */
-        .pictures-grid.eight-cards {
-          grid-template-columns: repeat(2, 1fr);
-        }
-        
-        /* Six cards layout (3x2 on larger screens, 2x3 on smaller) */
-        .pictures-grid.six-cards {
-          grid-template-columns: repeat(3, 1fr);
-        }
-        
-        /* Two cards layout (2x1 on all screens) */
-        .pictures-grid.two-cards {
-          grid-template-columns: repeat(2, 1fr);
-          max-width: 600px;
-          grid-gap: 10px;
-        }
-        
-        /* Mobile adjustments */
-        @media (max-width: 480px) {
-          .pictures-grid.nine-cards,
-          .pictures-grid.six-cards {
-            grid-template-columns: repeat(2, 1fr);
-          }
-          
-          .pictures-grid {
-            grid-gap: 2px;
-          }
-        }
-        
-        /* Ensure the text is always visible */
-        .picture-card > div:last-child {
-          display: flex !important;
-          visibility: visible !important;
         }
         
         /* Better word card styling */
@@ -652,61 +608,6 @@ const WordMatchingGame = ({ settings }) => {
           padding-bottom: 1rem;
           position: relative;
         }
-
-        /* Fix for picture card text display in all modes */
-        .pictures-grid.nine-cards .picture-card,
-        .pictures-grid.eight-cards .picture-card,
-        .pictures-grid.six-cards .picture-card,
-        .pictures-grid.two-cards .picture-card {
-          display: flex !important;
-          flex-direction: column !important;
-          height: auto !important;
-          max-height: none !important;
-        }
-        
-        /* Ensure word container is visible in all modes with consistent styling */
-        .picture-card .word-container,
-        .picture-card > div:last-child {
-          display: flex !important;
-          visibility: visible !important;
-          min-height: 24px !important;
-          height: 24px !important;
-          align-items: center !important;
-          justify-content: center !important;
-          background-color: white !important;
-          color: black !important;
-          font-size: 14px !important;
-          padding: 4px !important;
-          border-top: 1px solid #f0f0f0 !important;
-          text-align: center !important;
-        }
-        
-        /* Special handling for two cards mode - maintain consistency */
-        .pictures-grid.two-cards {
-          grid-template-columns: repeat(2, 1fr);
-          gap: 8px;
-          max-width: 800px;
-        }
-        
-        .pictures-grid.two-cards .picture-card {
-          height: auto !important;
-          max-width: 100%;
-        }
-        
-        /* Consistent styling for all picture containers */
-        .pictures-container {
-          min-height: 200px !important;
-          overflow: visible !important;
-        }
-        
-        /* Force consistent appearance in all layouts */
-        .pictures-grid.nine-cards,
-        .pictures-grid.eight-cards,
-        .pictures-grid.six-cards,
-        .pictures-grid.two-cards {
-          overflow: visible !important;
-          padding-bottom: 8px !important;
-        }
       `}</style>
       
       {/* Menu Button and Dropdown */}
@@ -901,7 +802,7 @@ const WordMatchingGame = ({ settings }) => {
           <span 
             className="font-bold text-center"
             style={{
-              fontSize: 'clamp(3.36rem, 14vw, 6.72rem)',
+              fontSize: 'clamp(4.2rem, 17.5vw, 8.4rem)',
               lineHeight: '1.1',
               display: 'block',
               fontWeight: '800'
