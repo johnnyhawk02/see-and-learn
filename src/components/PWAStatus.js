@@ -1,37 +1,44 @@
 import React, { useState, useEffect } from 'react';
 
 const PWAStatus = () => {
+  console.log('PWAStatus component rendering');
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
-    // Check if already installed as PWA
-    if (window.matchMedia('(display-mode: standalone)').matches || 
-        window.navigator.standalone === true) {
-      setIsStandalone(true);
+    try {
+      // Check if already installed as PWA
+      if (window.matchMedia('(display-mode: standalone)').matches || 
+          window.navigator.standalone === true) {
+        console.log('App is running in standalone mode');
+        setIsStandalone(true);
+      }
+
+      // Listen for the beforeinstallprompt event
+      const handleBeforeInstallPrompt = (e) => {
+        console.log('Received beforeinstallprompt event');
+        // Prevent Chrome 76+ from automatically showing the prompt
+        e.preventDefault();
+        // Stash the event so it can be triggered later
+        setInstallPrompt(e);
+      };
+
+      // Listen for app installed event
+      const handleAppInstalled = () => {
+        console.log('PWA was installed');
+        setInstallPrompt(null);
+      };
+
+      window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.addEventListener('appinstalled', handleAppInstalled);
+
+      return () => {
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        window.removeEventListener('appinstalled', handleAppInstalled);
+      };
+    } catch (error) {
+      console.error('Error in PWAStatus component:', error);
     }
-
-    // Listen for the beforeinstallprompt event
-    const handleBeforeInstallPrompt = (e) => {
-      // Prevent Chrome 76+ from automatically showing the prompt
-      e.preventDefault();
-      // Stash the event so it can be triggered later
-      setInstallPrompt(e);
-    };
-
-    // Listen for app installed event
-    const handleAppInstalled = () => {
-      setInstallPrompt(null);
-      console.log('PWA was installed');
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
   }, []);
 
   const handleInstallClick = async () => {

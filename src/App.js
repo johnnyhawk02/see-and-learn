@@ -6,6 +6,7 @@ import PWAStatus from './components/PWAStatus';
 import './App.css';
 
 const App = () => {
+  console.log('App component rendering');
   const [isPlaying, setIsPlaying] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [gameSettings, setGameSettings] = useState({
@@ -15,9 +16,16 @@ const App = () => {
 
   // Load settings on initial render
   useEffect(() => {
+    console.log('Loading settings from localStorage');
     const savedSettings = localStorage.getItem('gameSettings');
     if (savedSettings) {
-      setGameSettings(JSON.parse(savedSettings));
+      try {
+        const parsedSettings = JSON.parse(savedSettings);
+        console.log('Loaded settings:', parsedSettings);
+        setGameSettings(parsedSettings);
+      } catch (error) {
+        console.error('Error parsing settings:', error);
+      }
     }
   }, []);
 
@@ -69,7 +77,8 @@ const App = () => {
   };
 
   return (
-    <div className="h-screen w-screen bg-gray-50 overflow-hidden flex flex-col items-center justify-center">
+    <div className="fixed inset-0 bg-gray-50 flex flex-col items-center justify-center">
+      {console.log('Rendering main app container, isPlaying:', isPlaying)}
       <SettingsDialog 
         isOpen={isSettingsOpen} 
         onClose={closeSettings} 
@@ -77,7 +86,7 @@ const App = () => {
       />
       
       {!isPlaying ? (
-        <div className="text-center p-6 bg-white rounded-xl shadow-lg max-w-xl w-full">
+        <div className="text-center p-6 bg-white rounded-xl shadow-lg max-w-xl w-[90%] mx-auto">
           <h1 className="text-4xl font-bold mb-6 text-blue-600">Word Matching Game</h1>
           <p className="text-xl mb-8 text-gray-700">{getWelcomeMessage()}</p>
           <button 
@@ -96,17 +105,15 @@ const App = () => {
           </div>
         </div>
       ) : (
-        <>
-          <div className="w-full h-full flex items-center justify-center">
-            <WordMatchingGame 
-              settings={{
-                ...gameSettings,
-                onSettingsChange: saveSettings,
-                onExit: exitGame
-              }} 
-            />
-          </div>
-        </>
+        <div className="w-full h-full">
+          <WordMatchingGame 
+            settings={{
+              ...gameSettings,
+              onSettingsChange: saveSettings,
+              onExit: exitGame
+            }} 
+          />
+        </div>
       )}
       
       {/* PWA components */}
