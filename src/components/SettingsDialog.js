@@ -9,12 +9,18 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
   const [isPreloading, setIsPreloading] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState(0);
   
-  // States for individual resource loading
-  const [currentResourceIndex, setCurrentResourceIndex] = useState(0);
+  // States for visual resource loading
+  const [loadingMode, setLoadingMode] = useState('none'); // 'none', 'images', 'audio'
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [loadedCount, setLoadedCount] = useState(0);
-  const [resourceList, setResourceList] = useState([]);
+  const [totalResources, setTotalResources] = useState(0);
   const [currentResource, setCurrentResource] = useState(null);
-  const [isLoadingIndividual, setIsLoadingIndividual] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Audio states
+  const [audioSources, setAudioSources] = useState([]);
+  const [currentAudio, setCurrentAudio] = useState(null);
 
   // Load saved settings when component mounts
   useEffect(() => {
@@ -29,45 +35,30 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
       setShowWordsOnCards(settings.showWordsOnCards !== false);
     }
     
-    // Generate the resource list for individual loading
-    generateResourceList();
+    // Prepare audio sources
+    prepareAudioSources();
   }, []);
   
-  // Generate the complete resource list
-  const generateResourceList = () => {
-    // First, add all images
-    const imageResources = allPairs.map(pair => ({
-      type: 'image',
-      path: `/${pair.image}`,
-      name: pair.word,
-      loaded: false
-    }));
-    
-    // Then add all vocabulary audio
-    const wordAudioResources = allPairs.map(pair => ({
-      type: 'audio',
+  // Prepare the list of audio files
+  const prepareAudioSources = () => {
+    // Vocabulary audio
+    const wordAudioSources = allPairs.map(pair => ({
+      type: 'word',
       path: `/sounds/vocabulary/${pair.word}.wav`,
-      name: pair.word,
-      loaded: false
+      name: pair.word
     }));
     
-    // Finally add all praise audio
-    const praiseAudioResources = Array.from({ length: 20 }, (_, i) => ({
-      type: 'audio',
+    // Praise audio
+    const praiseAudioSources = Array.from({ length: 20 }, (_, i) => ({
+      type: 'praise',
       path: `/sounds/praise/praise${String(i + 1).padStart(2, '0')}.wav`,
-      name: `Praise ${i + 1}`,
-      loaded: false
+      name: `Praise ${i + 1}`
     }));
     
-    // Combine all resources into one list
-    const allResources = [
-      ...imageResources,
-      ...wordAudioResources, 
-      ...praiseAudioResources
-    ];
-    
-    setResourceList(allResources);
-    setCurrentResource(allResources[0]);
+    // Set audio sources and total resources
+    const allAudioSources = [...wordAudioSources, ...praiseAudioSources];
+    setAudioSources(allAudioSources);
+    setTotalResources(allPairs.length + allAudioSources.length);
   };
 
   const handleSave = () => {
@@ -82,83 +73,96 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     onClose();
   };
 
-  // Load a single resource based on current index
-  const loadSingleResource = () => {
-    if (currentResourceIndex >= resourceList.length) {
-      // All resources loaded
-      setIsLoadingIndividual(false);
-      localStorage.setItem('resourcesPreloaded', 'true');
-      alert('All resources have been preloaded successfully!');
-      return;
-    }
+  // Start image loading mode
+  const startImageLoading = () => {
+    setLoadingMode('images');
+    setCurrentIndex(0);
+    setLoadedCount(0);
+    setCurrentResource(allPairs[0]);
+    setIsLoading(false);
+  };
+  
+  // Start audio loading mode
+  const startAudioLoading = () => {
+    setLoadingMode('audio');
+    setCurrentIndex(0);
+    setCurrentResource(audioSources[0]);
+    setIsPlaying(false);
+  };
+  
+  // Handle image loaded event
+  const handleImageLoaded = () => {
+    const newIndex = currentIndex + 1;
+    setLoadedCount(prevCount => prevCount + 1);
     
-    setIsLoadingIndividual(true);
-    const resource = resourceList[currentResourceIndex];
-    setCurrentResource(resource);
-    
-    if (resource.type === 'image') {
-      const img = new Image();
-      img.onload = () => {
-        handleResourceLoaded();
-      };
-      img.onerror = (error) => {
-        console.error(`Error loading image: ${resource.path}`, error);
-        handleResourceLoaded();
-      };
-      img.src = resource.path;
-    } else if (resource.type === 'audio') {
-      const audio = new Audio();
-      
-      // For iOS compatibility, we need to play a short sound
-      audio.oncanplaythrough = () => {
-        // Play a tiny bit of audio to register it with iOS
-        try {
-          audio.volume = 0.01; // Very low volume
-          audio.play()
-            .then(() => {
-              // Quickly pause after a short time
-              setTimeout(() => {
-                audio.pause();
-                handleResourceLoaded();
-              }, 50);
-            })
-            .catch((err) => {
-              console.error('Error playing audio:', err);
-              handleResourceLoaded();
-            });
-        } catch (error) {
-          console.error('Error with audio playback:', error);
-          handleResourceLoaded();
-        }
-      };
-      
-      audio.onerror = (error) => {
-        console.error(`Error loading audio: ${resource.path}`, error);
-        handleResourceLoaded();
-      };
-      
-      audio.src = resource.path;
+    if (newIndex < allPairs.length) {
+      setCurrentIndex(newIndex);
+      setCurrentResource(allPairs[newIndex]);
+    } else {
+      // All images loaded, prompt for audio
+      alert('All images have been viewed! Next, we will play each sound to ensure they are loaded.');
+      startAudioLoading();
     }
   };
   
-  // Called when a resource finishes loading
-  const handleResourceLoaded = () => {
-    // Mark current resource as loaded
-    const updatedList = [...resourceList];
-    updatedList[currentResourceIndex].loaded = true;
-    setResourceList(updatedList);
+  // Handle playing the current audio
+  const playCurrentAudio = () => {
+    if (isPlaying || currentIndex >= audioSources.length) return;
     
-    // Increment counters
-    setLoadedCount(prevCount => prevCount + 1);
-    setCurrentResourceIndex(prevIndex => prevIndex + 1);
+    setIsPlaying(true);
+    const audio = new Audio(audioSources[currentIndex].path);
+    setCurrentAudio(audio);
     
-    // Set next resource
-    if (currentResourceIndex + 1 < resourceList.length) {
-      setCurrentResource(resourceList[currentResourceIndex + 1]);
+    audio.onended = () => {
+      setIsPlaying(false);
+      setLoadedCount(prevCount => prevCount + 1);
+      
+      // Move to next audio
+      const newIndex = currentIndex + 1;
+      if (newIndex < audioSources.length) {
+        setCurrentIndex(newIndex);
+        setCurrentResource(audioSources[newIndex]);
+      } else {
+        // All audio played
+        setCurrentAudio(null);
+        alert('All resources have been loaded! You can now use the app offline.');
+        localStorage.setItem('resourcesPreloaded', 'true');
+      }
+    };
+    
+    audio.onerror = (error) => {
+      console.error(`Error playing audio: ${audioSources[currentIndex].path}`, error);
+      setIsPlaying(false);
+      
+      // Move to next audio even if there was an error
+      const newIndex = currentIndex + 1;
+      setLoadedCount(prevCount => prevCount + 1);
+      
+      if (newIndex < audioSources.length) {
+        setCurrentIndex(newIndex);
+        setCurrentResource(audioSources[newIndex]);
+      } else {
+        setCurrentAudio(null);
+        alert('All resources have been loaded! You can now use the app offline.');
+        localStorage.setItem('resourcesPreloaded', 'true');
+      }
+    };
+    
+    // Play with lowered volume for testing
+    audio.volume = 0.5;
+    audio.play().catch(error => {
+      console.error('Error starting audio playback:', error);
+      setIsPlaying(false);
+    });
+  };
+  
+  // Handle stopping the current audio
+  const stopCurrentAudio = () => {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      setIsPlaying(false);
     }
-    
-    // Reset loading state so button is clickable again
-    setIsLoadingIndividual(false);
   };
 
   const preloadResources = async () => {
@@ -300,6 +304,149 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     }
   };
 
+  // Render the visual loading interface based on mode
+  const renderLoadingInterface = () => {
+    if (loadingMode === 'none') {
+      return (
+        <div className="text-center py-4">
+          <h3 className="text-md font-semibold mb-3">iOS Friendly Resource Loading</h3>
+          <p className="mb-4 text-sm">For iPads and iOS devices, use this method to ensure all resources are loaded:</p>
+          
+          <button
+            onClick={startImageLoading}
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded mb-3"
+          >
+            Step 1: Load Images One-by-One
+          </button>
+          
+          <p className="text-xs text-gray-500 mb-4">
+            You'll see each image and can tap "Next" to continue
+          </p>
+          
+          <button
+            onClick={startAudioLoading}
+            className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded"
+          >
+            Step 2: Play Sounds One-by-One
+          </button>
+          
+          <p className="text-xs text-gray-500 mt-1">
+            You'll hear each sound and can tap "Next" to continue
+          </p>
+        </div>
+      );
+    } else if (loadingMode === 'images') {
+      // Image loading interface
+      return (
+        <div className="text-center py-2">
+          <h3 className="text-md font-semibold mb-2">Loading Images</h3>
+          
+          <div className="mb-2 p-2 border rounded bg-gray-50">
+            <div className="flex justify-between mb-1">
+              <span className="font-medium">Progress:</span>
+              <span>{loadedCount} / {allPairs.length} images</span>
+            </div>
+            
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div 
+                className="bg-blue-600 h-2.5 rounded-full" 
+                style={{ width: `${(loadedCount / allPairs.length) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+          
+          {/* Display current image */}
+          {currentResource && (
+            <div className="mb-3 p-2 border rounded">
+              <p className="mb-2 text-sm font-medium">{currentResource.word}</p>
+              <div className="flex justify-center mb-3">
+                <img 
+                  src={`/${currentResource.image}`} 
+                  alt={currentResource.word}
+                  className="h-48 object-contain border rounded"
+                  onLoad={() => setIsLoading(false)}
+                  onError={() => setIsLoading(false)}
+                />
+              </div>
+              
+              <button
+                onClick={handleImageLoaded}
+                disabled={isLoading}
+                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded"
+              >
+                Next Image
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    } else if (loadingMode === 'audio') {
+      // Audio loading interface
+      return (
+        <div className="text-center py-2">
+          <h3 className="text-md font-semibold mb-2">Loading Sounds</h3>
+          
+          <div className="mb-2 p-2 border rounded bg-gray-50">
+            <div className="flex justify-between mb-1">
+              <span className="font-medium">Progress:</span>
+              <span>{loadedCount - allPairs.length} / {audioSources.length} sounds</span>
+            </div>
+            
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div 
+                className="bg-purple-600 h-2.5 rounded-full" 
+                style={{ width: `${((loadedCount - allPairs.length) / audioSources.length) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+          
+          {/* Display current audio info */}
+          {currentResource && currentIndex < audioSources.length && (
+            <div className="mb-3 p-3 border rounded bg-purple-50">
+              <p className="mb-2 text-sm font-medium">
+                {currentResource.type === 'word' ? '🔤' : '🎉'} {currentResource.name}
+              </p>
+              
+              <div className="flex justify-center space-x-3 mt-3">
+                {!isPlaying ? (
+                  <button
+                    onClick={playCurrentAudio}
+                    className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-6 rounded"
+                  >
+                    Play Sound
+                  </button>
+                ) : (
+                  <button
+                    onClick={stopCurrentAudio}
+                    className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded"
+                  >
+                    Stop
+                  </button>
+                )}
+              </div>
+              
+              <p className="text-xs text-gray-500 mt-3">
+                Each sound must be played to ensure it's loaded
+              </p>
+            </div>
+          )}
+          
+          {currentIndex >= audioSources.length && (
+            <div className="mb-3 p-3 border rounded bg-green-50">
+              <p className="text-green-600 font-bold mb-2">All resources loaded successfully!</p>
+              <button
+                onClick={() => setLoadingMode('none')}
+                className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded"
+              >
+                Done
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -333,57 +480,13 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
             )}
           </button>
           <p className="text-xs text-gray-500 mt-1">
-            This will download all images and sounds for offline use
+            Standard preloading (works best on desktop)
           </p>
         </div>
         
-        {/* Individual resource loading - iOS friendly */}
-        <div className="mb-6">
-          <h3 className="text-md font-semibold mb-2">iOS Friendly Resource Loading</h3>
-          
-          <div className="mb-2 p-2 border rounded bg-gray-50">
-            <div className="flex justify-between mb-1">
-              <span className="font-medium">Progress:</span>
-              <span>{loadedCount} / {resourceList.length} resources</span>
-            </div>
-            
-            <div className="w-full bg-gray-200 rounded-full h-2.5">
-              <div 
-                className="bg-blue-600 h-2.5 rounded-full" 
-                style={{ width: `${resourceList.length > 0 ? (loadedCount / resourceList.length) * 100 : 0}%` }}
-              ></div>
-            </div>
-          </div>
-          
-          <div className="mb-3 p-2 border rounded bg-blue-50">
-            <p className="text-sm">
-              <strong>Current Resource:</strong> {currentResource ? (
-                <>
-                  {currentResource.type === 'image' ? '🖼️' : '🔊'} {currentResource.name}
-                </>
-              ) : 'Ready to start'}
-            </p>
-          </div>
-          
-          <button
-            onClick={loadSingleResource}
-            disabled={isLoadingIndividual}
-            className={`w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded ${isLoadingIndividual ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {isLoadingIndividual ? (
-              <div className="flex items-center justify-center">
-                <span className="mr-2">Loading...</span>
-                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-              </div>
-            ) : (
-              currentResourceIndex >= resourceList.length ?
-              'All Resources Loaded!' :
-              'Tap to Load Next Resource'
-            )}
-          </button>
-          <p className="text-xs text-gray-500 mt-1">
-            For iOS devices: Press this button repeatedly to load one resource at a time
-          </p>
+        {/* iOS friendly visual resource loader */}
+        <div className="mb-6 border rounded p-3 bg-gray-50">
+          {renderLoadingInterface()}
         </div>
         
         <div className="flex justify-end">
