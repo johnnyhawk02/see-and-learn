@@ -163,6 +163,10 @@ const PictureCard = ({ item, onClick, onLongPress, disabled, isIncorrect, showWo
         margin: '0 auto',
         width: '100%',
         maxWidth: '100%',
+        ...(process.env.NODE_ENV !== 'production' && disabled ? {
+          outline: '2px dashed red',
+          position: 'relative'
+        } : {})
       }}
     >
       {/* Loading spinner styles */}

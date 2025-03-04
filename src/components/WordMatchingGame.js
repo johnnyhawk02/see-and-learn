@@ -105,6 +105,10 @@ const WordMatchingGame = ({ settings }) => {
     try {
       console.log('Setting up new round with numChoices:', numChoices);
       
+      // Reset interaction states
+      setIsAnimating(false);
+      setShowIncorrect(false);
+      
       // Filter pairs to ensure they all have images
       const eligiblePairs = allPairs.filter(pair => pair.image && pair.word);
       
@@ -312,6 +316,9 @@ const WordMatchingGame = ({ settings }) => {
         setTimeout(() => {
           clearTimeout(safetyTimer);
           
+          // IMPORTANT: Reset animation state to allow interactions in the next round
+          setIsAnimating(false);
+          
           // Don't speak new word here to avoid duplication
           // if (newTargetWord && newTargetWord.word) {
           //   speakWord(newTargetWord.word);
@@ -443,6 +450,11 @@ const WordMatchingGame = ({ settings }) => {
     
     // Don't close the menu after toggling
   };
+
+  // Log animation state changes
+  useEffect(() => {
+    console.log(`isAnimating changed to: ${isAnimating}`);
+  }, [isAnimating]);
 
   return (
     <div className="game-container pt-8 sm:pt-10 px-4 sm:px-6">
