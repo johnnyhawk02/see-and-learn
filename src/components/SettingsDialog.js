@@ -18,9 +18,25 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
+  // Debug logging state
+  const [logMessages, setLogMessages] = useState([]);
+  
+  // Cache status tracking
+  const [cachedItems, setCachedItems] = useState({});
+  
   // Audio states
   const [audioSources, setAudioSources] = useState([]);
   const [currentAudio, setCurrentAudio] = useState(null);
+  
+  // Constants
+  const CACHE_NAME = 'see-and-learn-resources-v1';
+  
+  // Log function for debugging
+  const addLog = (message) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setLogMessages(prev => [`${timestamp}: ${message}`, ...prev.slice(0, 9)]);
+    console.log(`[SettingsDialog] ${message}`);
+  };
 
   // Load saved settings when component mounts
   useEffect(() => {
@@ -37,7 +53,58 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     
     // Prepare audio sources
     prepareAudioSources();
+    
+    // Check which resources are already cached
+    checkCachedResources();
   }, []);
+  
+  // Check which resources are already in the cache
+  const checkCachedResources = async () => {
+    // Only run if Cache API is available
+    if (!('caches' in window)) {
+      addLog('Cache API not available in this browser');
+      return;
+    }
+    
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      const keys = await cache.keys();
+      const cachedUrls = keys.map(request => request.url);
+      
+      addLog(`Found ${cachedUrls.length} items in cache`);
+      
+      // Create a map of cached status
+      const cachedStatus = {};
+      
+      // Check images
+      for (const pair of allPairs) {
+        const imageUrl = `${window.location.origin}/${pair.image}`;
+        cachedStatus[imageUrl] = cachedUrls.includes(imageUrl);
+      }
+      
+      // Check vocabulary audio
+      for (const pair of allPairs) {
+        const audioUrl = `${window.location.origin}/sounds/vocabulary/${pair.word}.wav`;
+        cachedStatus[audioUrl] = cachedUrls.includes(audioUrl);
+      }
+      
+      // Check praise audio
+      for (let i = 1; i <= 20; i++) {
+        const praiseFile = `/sounds/praise/praise${String(i).padStart(2, '0')}.wav`;
+        const audioUrl = `${window.location.origin}${praiseFile}`;
+        cachedStatus[audioUrl] = cachedUrls.includes(audioUrl);
+      }
+      
+      setCachedItems(cachedStatus);
+      
+      // Count total cached
+      const totalCached = Object.values(cachedStatus).filter(Boolean).length;
+      addLog(`${totalCached} resources are already cached for offline use`);
+      
+    } catch (error) {
+      addLog(`Error checking cache: ${error.message}`);
+    }
+  };
   
   // Prepare the list of audio files
   const prepareAudioSources = () => {
@@ -45,6 +112,7 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     const wordAudioSources = allPairs.map(pair => ({
       type: 'word',
       path: `/sounds/vocabulary/${pair.word}.wav`,
+      fullPath: `${window.location.origin}/sounds/vocabulary/${pair.word}.wav`,
       name: pair.word
     }));
     
@@ -52,6 +120,7 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     const praiseAudioSources = Array.from({ length: 20 }, (_, i) => ({
       type: 'praise',
       path: `/sounds/praise/praise${String(i + 1).padStart(2, '0')}.wav`,
+      fullPath: `${window.location.origin}/sounds/praise/praise${String(i + 1).padStart(2, '0')}.wav`,
       name: `Praise ${i + 1}`
     }));
     
@@ -73,6 +142,45 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     onClose();
   };
 
+  // Manually cache a resource using Cache API
+  const cacheResource = async (url) => {
+    if (!('caches' in window)) {
+      addLog('Cache API not available');
+      return false;
+    }
+    
+    try {
+      addLog(`Caching resource: ${url}`);
+      const cache = await caches.open(CACHE_NAME);
+      
+      // Fetch with cache busting query parameter to ensure we get a fresh copy
+      const fetchResponse = await fetch(`${url}?nocache=${Date.now()}`);
+      
+      if (!fetchResponse.ok) {
+        addLog(`Failed to fetch resource: ${url} (${fetchResponse.status})`);
+        return false;
+      }
+      
+      // Clone the response before using it
+      const responseClone = fetchResponse.clone();
+      
+      // Store the original URL in the cache (without the cache busting parameter)
+      await cache.put(url, responseClone);
+      
+      // Update cached items status
+      setCachedItems(prev => ({
+        ...prev,
+        [url]: true
+      }));
+      
+      addLog(`Successfully cached: ${url}`);
+      return true;
+    } catch (error) {
+      addLog(`Error caching resource: ${error.message}`);
+      return false;
+    }
+  };
+  
   // Start image loading mode
   const startImageLoading = () => {
     setLoadingMode('images');
@@ -91,7 +199,15 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
   };
   
   // Handle image loaded event
-  const handleImageLoaded = () => {
+  const handleImageLoaded = async () => {
+    // Cache the current image
+    const imageUrl = `${window.location.origin}/${currentResource.image}`;
+    const success = await cacheResource(imageUrl);
+    
+    if (success) {
+      addLog(`Cached image for: ${currentResource.word}`);
+    }
+    
     const newIndex = currentIndex + 1;
     setLoadedCount(prevCount => prevCount + 1);
     
@@ -100,18 +216,28 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
       setCurrentResource(allPairs[newIndex]);
     } else {
       // All images loaded, prompt for audio
-      alert('All images have been viewed! Next, we will play each sound to ensure they are loaded.');
+      addLog('All images have been processed');
+      alert('All images have been cached! Next, we will play each sound to ensure they are loaded.');
       startAudioLoading();
     }
   };
   
   // Handle playing the current audio
-  const playCurrentAudio = () => {
+  const playCurrentAudio = async () => {
     if (isPlaying || currentIndex >= audioSources.length) return;
     
     setIsPlaying(true);
-    const audio = new Audio(audioSources[currentIndex].path);
+    const audioSource = audioSources[currentIndex];
+    const audio = new Audio(audioSource.path);
     setCurrentAudio(audio);
+    
+    // Attempt to cache the audio file first
+    const audioUrl = audioSource.fullPath;
+    const success = await cacheResource(audioUrl);
+    
+    if (success) {
+      addLog(`Cached audio for: ${audioSource.name}`);
+    }
     
     audio.onended = () => {
       setIsPlaying(false);
@@ -125,13 +251,19 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
       } else {
         // All audio played
         setCurrentAudio(null);
-        alert('All resources have been loaded! You can now use the app offline.');
-        localStorage.setItem('resourcesPreloaded', 'true');
+        addLog('All audio files have been processed');
+        
+        // Verify cache status
+        checkCachedResources().then(() => {
+          alert('All resources have been cached! You can now use the app offline.');
+          localStorage.setItem('resourcesPreloaded', 'true');
+        });
       }
     };
     
     audio.onerror = (error) => {
-      console.error(`Error playing audio: ${audioSources[currentIndex].path}`, error);
+      console.error(`Error playing audio: ${audioSource.path}`, error);
+      addLog(`Error playing audio: ${audioSource.name}`);
       setIsPlaying(false);
       
       // Move to next audio even if there was an error
@@ -143,15 +275,18 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
         setCurrentResource(audioSources[newIndex]);
       } else {
         setCurrentAudio(null);
-        alert('All resources have been loaded! You can now use the app offline.');
-        localStorage.setItem('resourcesPreloaded', 'true');
+        checkCachedResources().then(() => {
+          alert('Finished processing all resources. Some errors occurred.');
+          localStorage.setItem('resourcesPreloaded', 'true');
+        });
       }
     };
     
-    // Play with lowered volume for testing
-    audio.volume = 0.5;
+    // Play with normal volume
+    audio.volume = 0.7;
     audio.play().catch(error => {
       console.error('Error starting audio playback:', error);
+      addLog(`Playback error: ${error.message}`);
       setIsPlaying(false);
     });
   };
@@ -164,140 +299,79 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
       setIsPlaying(false);
     }
   };
-
-  const preloadResources = async () => {
+  
+  // Force download all resources at once
+  const forceDownloadAllResources = async () => {
+    if (!('caches' in window)) {
+      alert('Cache API is not available in your browser. Offline functionality may not work.');
+      return;
+    }
+    
     setIsPreloading(true);
     setPreloadProgress(0);
     
-    const totalResources = allPairs.length * 2 + 20; // Images + audio + praise sounds
-    let loadedResources = 0;
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const AUDIO_TIMEOUT = 5000; // 5 seconds timeout for audio loading
-    
-    // Helper function to update progress
-    const updateProgress = () => {
-      loadedResources++;
-      const percentage = Math.round((loadedResources / totalResources) * 100);
-      setPreloadProgress(percentage);
-      console.log(`Preloading progress: ${percentage}%`);
-    };
+    // Calculate total resources
+    const totalItems = allPairs.length * 2 + 20; // Images + vocabulary audio + praise sounds
+    let processedItems = 0;
     
     try {
-      // Preload all images
-      const imagePromises = allPairs.map(pair => {
-        return new Promise((resolve, reject) => {
-          const img = new Image();
-          img.onload = () => {
-            updateProgress();
-            resolve();
-          };
-          img.onerror = (error) => {
-            console.error(`Error loading image: ${pair.image}`, error);
-            updateProgress(); // Still increment to avoid getting stuck
-            resolve(); // Resolve anyway to continue preloading
-          };
-          // Use the direct path from public folder
-          img.src = `/${pair.image}`;
-        });
-      });
-
-      // Preload all word audio - with timeout for mobile
-      const wordAudioPromises = allPairs.map(pair => {
-        return new Promise((resolve) => {
-          const audio = new Audio();
-          
-          // Safety timeout for mobile devices
-          const timeoutId = setTimeout(() => {
-            console.log(`Audio timeout for word: ${pair.word}`);
-            updateProgress();
-            resolve();
-          }, AUDIO_TIMEOUT);
-          
-          audio.oncanplaythrough = () => {
-            clearTimeout(timeoutId);
-            updateProgress();
-            resolve();
-          };
-          
-          audio.onerror = (error) => {
-            clearTimeout(timeoutId);
-            console.error(`Error loading audio: /sounds/vocabulary/${pair.word}.wav`, error);
-            updateProgress(); // Still increment to avoid getting stuck
-            resolve(); // Resolve anyway to continue preloading
-          };
-          
-          // For mobile: preload as blob first for better reliability
-          if (isMobile) {
-            fetch(`/sounds/vocabulary/${pair.word}.wav`)
-              .then(response => response.blob())
-              .then(blob => {
-                audio.src = URL.createObjectURL(blob);
-              })
-              .catch(() => {
-                audio.src = `/sounds/vocabulary/${pair.word}.wav`;
-              });
-          } else {
-            audio.src = `/sounds/vocabulary/${pair.word}.wav`;
-          }
-        });
-      });
-
-      // Preload praise audio - with timeout for mobile
-      const praiseAudioPromises = Array.from({ length: 20 }, (_, i) => {
-        return new Promise((resolve) => {
-          const audio = new Audio();
-          const praiseFile = `/sounds/praise/praise${String(i + 1).padStart(2, '0')}.wav`;
-          
-          // Safety timeout for mobile devices
-          const timeoutId = setTimeout(() => {
-            console.log(`Audio timeout for praise: ${i + 1}`);
-            updateProgress();
-            resolve();
-          }, AUDIO_TIMEOUT);
-          
-          audio.oncanplaythrough = () => {
-            clearTimeout(timeoutId);
-            updateProgress();
-            resolve();
-          };
-          
-          audio.onerror = (error) => {
-            clearTimeout(timeoutId);
-            console.error(`Error loading praise audio: ${praiseFile}`, error);
-            updateProgress(); // Still increment to avoid getting stuck
-            resolve(); // Resolve anyway to continue preloading
-          };
-          
-          // For mobile: preload as blob first for better reliability
-          if (isMobile) {
-            fetch(praiseFile)
-              .then(response => response.blob())
-              .then(blob => {
-                audio.src = URL.createObjectURL(blob);
-              })
-              .catch(() => {
-                audio.src = praiseFile;
-              });
-          } else {
-            audio.src = praiseFile;
-          }
-        });
-      });
-
-      // Wait for all resources to load
-      await Promise.all([
-        ...imagePromises,
-        ...wordAudioPromises,
-        ...praiseAudioPromises
-      ]);
-
-      // Cache success status
-      localStorage.setItem('resourcesPreloaded', 'true');
+      addLog('Starting force download of all resources');
       
-      alert('All resources have been preloaded successfully!');
+      // Open cache
+      const cache = await caches.open(CACHE_NAME);
+      
+      // Cache all images
+      for (const pair of allPairs) {
+        try {
+          const imageUrl = `${window.location.origin}/${pair.image}`;
+          await cacheResource(imageUrl);
+          
+          processedItems++;
+          const percentage = Math.round((processedItems / totalItems) * 100);
+          setPreloadProgress(percentage);
+        } catch (error) {
+          addLog(`Error caching image ${pair.word}: ${error.message}`);
+        }
+      }
+      
+      // Cache all vocabulary audio
+      for (const pair of allPairs) {
+        try {
+          const audioUrl = `${window.location.origin}/sounds/vocabulary/${pair.word}.wav`;
+          await cacheResource(audioUrl);
+          
+          processedItems++;
+          const percentage = Math.round((processedItems / totalItems) * 100);
+          setPreloadProgress(percentage);
+        } catch (error) {
+          addLog(`Error caching audio for ${pair.word}: ${error.message}`);
+        }
+      }
+      
+      // Cache all praise audio
+      for (let i = 1; i <= 20; i++) {
+        try {
+          const praiseFile = `/sounds/praise/praise${String(i).padStart(2, '0')}.wav`;
+          const audioUrl = `${window.location.origin}${praiseFile}`;
+          await cacheResource(audioUrl);
+          
+          processedItems++;
+          const percentage = Math.round((processedItems / totalItems) * 100);
+          setPreloadProgress(percentage);
+        } catch (error) {
+          addLog(`Error caching praise audio ${i}: ${error.message}`);
+        }
+      }
+      
+      // Verify cache status
+      await checkCachedResources();
+      
+      addLog('Finished force downloading all resources');
+      alert('All resources have been force downloaded for offline use!');
+      localStorage.setItem('resourcesPreloaded', 'true');
     } catch (error) {
-      console.error('Error preloading resources:', error);
-      alert('There was an error preloading some resources. Please try again.');
+      addLog(`Error during force download: ${error.message}`);
+      alert('There was an error downloading resources. Please check the logs.');
     } finally {
       setIsPreloading(false);
       setPreloadProgress(0);
@@ -316,22 +390,34 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
             onClick={startImageLoading}
             className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded mb-3"
           >
-            Step 1: Load Images One-by-One
+            Step 1: Cache Images One-by-One
           </button>
           
           <p className="text-xs text-gray-500 mb-4">
-            You'll see each image and can tap "Next" to continue
+            You'll see each image and tap "Cache & Continue" to store it
           </p>
           
           <button
             onClick={startAudioLoading}
-            className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded"
+            className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded mb-3"
           >
-            Step 2: Play Sounds One-by-One
+            Step 2: Cache Sounds One-by-One
+          </button>
+          
+          <p className="text-xs text-gray-500 mb-4">
+            You'll hear each sound and tap "Play Sound" to store it
+          </p>
+          
+          <button
+            onClick={forceDownloadAllResources}
+            disabled={isPreloading}
+            className={`w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded ${isPreloading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            Force Download All Resources
           </button>
           
           <p className="text-xs text-gray-500 mt-1">
-            You'll hear each sound and can tap "Next" to continue
+            Attempts to download all resources at once with explicit caching
           </p>
         </div>
       );
@@ -339,7 +425,7 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
       // Image loading interface
       return (
         <div className="text-center py-2">
-          <h3 className="text-md font-semibold mb-2">Loading Images</h3>
+          <h3 className="text-md font-semibold mb-2">Caching Images</h3>
           
           <div className="mb-2 p-2 border rounded bg-gray-50">
             <div className="flex justify-between mb-1">
@@ -374,7 +460,7 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
                 disabled={isLoading}
                 className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded"
               >
-                Next Image
+                Cache & Continue
               </button>
             </div>
           )}
@@ -384,7 +470,7 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
       // Audio loading interface
       return (
         <div className="text-center py-2">
-          <h3 className="text-md font-semibold mb-2">Loading Sounds</h3>
+          <h3 className="text-md font-semibold mb-2">Caching Sounds</h3>
           
           <div className="mb-2 p-2 border rounded bg-gray-50">
             <div className="flex justify-between mb-1">
@@ -426,14 +512,14 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
               </div>
               
               <p className="text-xs text-gray-500 mt-3">
-                Each sound must be played to ensure it's loaded
+                Each sound is cached when you press play
               </p>
             </div>
           )}
           
           {currentIndex >= audioSources.length && (
             <div className="mb-3 p-3 border rounded bg-green-50">
-              <p className="text-green-600 font-bold mb-2">All resources loaded successfully!</p>
+              <p className="text-green-600 font-bold mb-2">All resources cached successfully!</p>
               <button
                 onClick={() => setLoadingMode('none')}
                 className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded"
@@ -446,12 +532,28 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
       );
     }
   };
+  
+  // Debug log display
+  const renderDebugLogs = () => {
+    return (
+      <div className="mt-4 p-2 border rounded bg-gray-100 text-xs text-left h-32 overflow-y-auto">
+        <div className="font-medium mb-1">Debug Logs:</div>
+        {logMessages.length === 0 ? (
+          <div className="text-gray-500">No logs yet</div>
+        ) : (
+          logMessages.map((message, index) => (
+            <div key={index} className="mb-1">{message}</div>
+          ))
+        )}
+      </div>
+    );
+  };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Game Settings</h2>
           <button 
@@ -464,32 +566,15 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
           </button>
         </div>
         
-        <div className="mb-4">
-          <button
-            onClick={preloadResources}
-            disabled={isPreloading}
-            className={`w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded ${isPreloading ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {isPreloading ? (
-              <div className="flex items-center justify-center">
-                <span className="mr-2">Preloading... {preloadProgress}%</span>
-                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-              </div>
-            ) : (
-              'Preload All Resources for Offline Use'
-            )}
-          </button>
-          <p className="text-xs text-gray-500 mt-1">
-            Standard preloading (works best on desktop)
-          </p>
-        </div>
-        
         {/* iOS friendly visual resource loader */}
         <div className="mb-6 border rounded p-3 bg-gray-50">
           {renderLoadingInterface()}
         </div>
         
-        <div className="flex justify-end">
+        {/* Debug logs for troubleshooting */}
+        {renderDebugLogs()}
+        
+        <div className="flex justify-end mt-4">
           <button
             onClick={onClose}
             className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mr-2"
