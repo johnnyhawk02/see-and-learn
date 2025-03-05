@@ -295,7 +295,7 @@ self.addEventListener('fetch', event => {
     
     if ((url.pathname.endsWith('.mp4') || 
         url.pathname.endsWith('.webm') || 
-        url.pathname.endsWith('.wav') || url.pathname.endsWith('.mp3'))) {
+        url.pathname.endsWith('.mp3'))) {
     
       event.respondWith(
         (async () => {
@@ -347,7 +347,7 @@ self.addEventListener('fetch', event => {
             } catch (fetchErr) {
               console.error('[Service Worker] Failed to fetch after range error:', fetchErr);
               // Return an empty response with the correct content type as a last resort
-              const contentType = event.request.url.endsWith('.mp3') || event.request.url.endsWith('.wav') 
+              const contentType = event.request.url.endsWith('.mp3') 
                 ? 'audio/mpeg' 
                 : 'video/mp4';
               

@@ -60,12 +60,6 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
   
   // Check which resources are already in the cache
   const checkCachedResources = async () => {
-    // Only run if Cache API is available
-    if (!('caches' in window)) {
-      addLog('Cache API not available in this browser');
-      return;
-    }
-    
     try {
       const cache = await caches.open(CACHE_NAME);
       const keys = await cache.keys();
@@ -82,15 +76,15 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
         cachedStatus[imageUrl] = cachedUrls.includes(imageUrl);
       }
       
-      // Check vocabulary audio
+      // Check vocabulary audio (now using .mp3)
       for (const pair of allPairs) {
-        const audioUrl = `${window.location.origin}/sounds/vocabulary/${pair.word}.wav`;
+        const audioUrl = `${window.location.origin}/sounds/vocabulary/${pair.word}.mp3`;
         cachedStatus[audioUrl] = cachedUrls.includes(audioUrl);
       }
       
-      // Check praise audio
+      // Check praise audio (now using .mp3)
       for (let i = 1; i <= 20; i++) {
-        const praiseFile = `/sounds/praise/praise${String(i).padStart(2, '0')}.wav`;
+        const praiseFile = `/sounds/praise/praise${String(i).padStart(2, '0')}.mp3`;
         const audioUrl = `${window.location.origin}${praiseFile}`;
         cachedStatus[audioUrl] = cachedUrls.includes(audioUrl);
       }
@@ -108,19 +102,19 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
   
   // Prepare the list of audio files
   const prepareAudioSources = () => {
-    // Vocabulary audio
+    // Vocabulary audio (now using .mp3)
     const wordAudioSources = allPairs.map(pair => ({
       type: 'word',
-      path: `/sounds/vocabulary/${pair.word}.wav`,
-      fullPath: `${window.location.origin}/sounds/vocabulary/${pair.word}.wav`,
+      path: `/sounds/vocabulary/${pair.word}.mp3`,
+      fullPath: `${window.location.origin}/sounds/vocabulary/${pair.word}.mp3`,
       name: pair.word
     }));
     
-    // Praise audio
+    // Praise audio (now using .mp3)
     const praiseAudioSources = Array.from({ length: 20 }, (_, i) => ({
       type: 'praise',
-      path: `/sounds/praise/praise${String(i + 1).padStart(2, '0')}.wav`,
-      fullPath: `${window.location.origin}/sounds/praise/praise${String(i + 1).padStart(2, '0')}.wav`,
+      path: `/sounds/praise/praise${String(i + 1).padStart(2, '0')}.mp3`,
+      fullPath: `${window.location.origin}/sounds/praise/praise${String(i + 1).padStart(2, '0')}.mp3`,
       name: `Praise ${i + 1}`
     }));
     
@@ -334,10 +328,10 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
         }
       }
       
-      // Cache all vocabulary audio
+      // Cache all vocabulary audio (now using .mp3)
       for (const pair of allPairs) {
         try {
-          const audioUrl = `${window.location.origin}/sounds/vocabulary/${pair.word}.wav`;
+          const audioUrl = `${window.location.origin}/sounds/vocabulary/${pair.word}.mp3`;
           await cacheResource(audioUrl);
           
           processedItems++;
@@ -348,10 +342,10 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
         }
       }
       
-      // Cache all praise audio
+      // Cache all praise audio (now using .mp3)
       for (let i = 1; i <= 20; i++) {
         try {
-          const praiseFile = `/sounds/praise/praise${String(i).padStart(2, '0')}.wav`;
+          const praiseFile = `/sounds/praise/praise${String(i).padStart(2, '0')}.mp3`;
           const audioUrl = `${window.location.origin}${praiseFile}`;
           await cacheResource(audioUrl);
           
@@ -371,10 +365,9 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
       localStorage.setItem('resourcesPreloaded', 'true');
     } catch (error) {
       addLog(`Error during force download: ${error.message}`);
-      alert('There was an error downloading resources. Please check the logs.');
+      alert('There was an error downloading resources. Please try again.');
     } finally {
       setIsPreloading(false);
-      setPreloadProgress(0);
     }
   };
 

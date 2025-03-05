@@ -70,8 +70,8 @@ const WordMatchingGame = ({ settings }) => {
       setCurrentAudio(null);
     }
     
-    // Create and play audio
-    const audioPath = `/sounds/vocabulary/${word}.wav`;
+    // Create and play audio (now using .mp3)
+    const audioPath = `/sounds/vocabulary/${word}.mp3`;
     console.log(`Speaking word: ${word}, Path: ${audioPath}`);
     
     const audio = new Audio(audioPath);
@@ -297,7 +297,7 @@ const WordMatchingGame = ({ settings }) => {
       
       // Play a random praise audio track
       const praiseNumber = Math.floor(Math.random() * 20) + 1;
-      const praiseAudio = new Audio(`/sounds/praise/praise${String(praiseNumber).padStart(2, '0')}.wav`);
+      const praiseAudio = new Audio(`/sounds/praise/praise${String(praiseNumber).padStart(2, '0')}.mp3`);
       praiseAudio.play();
       
       // Clear incorrect selections for next round
@@ -333,7 +333,7 @@ const WordMatchingGame = ({ settings }) => {
       // setShowIncorrect(false);
       
       // Play wrong sound
-      playSound('/sounds/wrong.wav', 1, () => {
+      playSound('/sounds/wrong.mp3', 1, () => {
         // Speak correct word after delay
         setTimeout(() => {
           if (currentWord && currentWord.word) {
