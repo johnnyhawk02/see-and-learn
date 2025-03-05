@@ -72,7 +72,7 @@ const WordMatchingGame = ({ settings }) => {
     
     // Create and play audio (now using .mp3)
     const audioPath = `/sounds/vocabulary/${word}.mp3`;
-    console.log(`Speaking word: ${word}, Path: ${audioPath}`);
+    console.log(`Speaking word: ${word}, Path: ${audioPath}, isIPadDevice: ${isIPadDevice}`);
     
     const audio = new Audio(audioPath);
     setCurrentAudio(audio);
@@ -94,10 +94,26 @@ const WordMatchingGame = ({ settings }) => {
       }
     };
     
-    audio.play().catch(err => {
-      console.error("Error playing audio:", err);
-      setCurrentAudio(null);
-    });
+    // Special handling for iOS devices
+    if (isIPadDevice) {
+      console.log("Using iOS-specific audio playback method");
+      
+      // iOS requires user interaction to play audio
+      // When this fails on initial load, we'll retry on first touch
+      audio.play().catch(err => {
+        console.error("iOS error playing audio:", err);
+        
+        // Set a flag that we need to play this word on first interaction
+        window.pendingWordToSpeak = word;
+        setCurrentAudio(null);
+      });
+    } else {
+      // Standard playback for non-iOS
+      audio.play().catch(err => {
+        console.error("Error playing audio:", err);
+        setCurrentAudio(null);
+      });
+    }
   };
 
   // Set up a new round with new cards and a new target word
@@ -226,6 +242,48 @@ const WordMatchingGame = ({ settings }) => {
     window.addEventListener('resize', checkDeviceType);
     return () => window.removeEventListener('resize', checkDeviceType);
   }, []);
+
+  // Handle iOS audio autoplay restrictions
+  useEffect(() => {
+    if (isIPadDevice) {
+      console.log("Setting up iOS audio interaction handler");
+      
+      // Function to handle first touch
+      const handleFirstTouch = () => {
+        console.log("First touch detected on iOS device");
+        
+        // Check if we have a pending word to speak
+        if (window.pendingWordToSpeak) {
+          console.log("Playing pending word:", window.pendingWordToSpeak);
+          const word = window.pendingWordToSpeak;
+          window.pendingWordToSpeak = null;
+          
+          // Small delay to ensure touch is registered first
+          setTimeout(() => {
+            speakWord(word);
+          }, 100);
+        }
+        
+        // Create and play a silent audio to unlock audio
+        const silentAudio = new Audio("/sounds/silent.mp3");
+        silentAudio.play().catch(err => console.log("Silent audio error:", err));
+        
+        // Remove the handler after first use
+        document.removeEventListener('touchstart', handleFirstTouch);
+        document.removeEventListener('click', handleFirstTouch);
+      };
+      
+      // Add touch/click handlers
+      document.addEventListener('touchstart', handleFirstTouch);
+      document.addEventListener('click', handleFirstTouch);
+      
+      // Cleanup
+      return () => {
+        document.removeEventListener('touchstart', handleFirstTouch);
+        document.removeEventListener('click', handleFirstTouch);
+      };
+    }
+  }, [isIPadDevice]);
 
   // Play sound with callback and volume control
   const playSound = (path, volume = 1, callback) => {

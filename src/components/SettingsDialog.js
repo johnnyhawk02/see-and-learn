@@ -9,6 +9,10 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
   const [isPreloading, setIsPreloading] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState(0);
   
+  // Device detection states
+  const [isIPadDevice, setIsIPadDevice] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  
   // States for visual resource loading
   const [loadingMode, setLoadingMode] = useState('none'); // 'none', 'images', 'audio'
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -38,6 +42,27 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     console.log(`[SettingsDialog] ${message}`);
   };
 
+  // Detect device type on mount
+  useEffect(() => {
+    const checkDeviceType = () => {
+      // Check for iPad specifically
+      const isIPad = /iPad/i.test(navigator.userAgent) || 
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1 && window.innerWidth >= 768 && window.innerWidth <= 1024);
+      
+      // Check for mobile phones (iPhone, Android phones)
+      const isMobile = /iPhone|Android/i.test(navigator.userAgent) && window.innerWidth <= 480;
+      
+      setIsIPadDevice(isIPad);
+      setIsMobileDevice(isMobile);
+      
+      console.log(`Device detection: iPad=${isIPad}, Mobile=${isMobile}`);
+    };
+    
+    checkDeviceType();
+    window.addEventListener('resize', checkDeviceType);
+    return () => window.removeEventListener('resize', checkDeviceType);
+  }, []);
+
   // Load saved settings when component mounts
   useEffect(() => {
     const savedSettings = localStorage.getItem('gameSettings');
@@ -45,9 +70,26 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
       const settings = JSON.parse(savedSettings);
       setPlayerName(settings.playerName || '');
       setSoundEnabled(settings.soundEnabled !== false);
-      // Ensure we only use 2 or 4 choices
-      const savedChoices = settings.numChoices || 4;
-      setNumChoices(savedChoices === 2 ? 2 : 4);
+      
+      // Ensure the number of choices is appropriate for the device
+      let savedChoices = settings.numChoices || 4;
+      
+      // For iPad, only allow 2 or 4 choices
+      if (isIPadDevice) {
+        savedChoices = savedChoices <= 2 ? 2 : 4;
+      } 
+      // For mobile, allow 2, 4, or 6 choices
+      else if (isMobileDevice) {
+        if (savedChoices <= 2) savedChoices = 2;
+        else if (savedChoices <= 4) savedChoices = 4;
+        else savedChoices = 6;
+      }
+      // For desktop, default to 4
+      else {
+        savedChoices = savedChoices === 2 ? 2 : 4;
+      }
+      
+      setNumChoices(savedChoices);
       setShowWordsOnCards(settings.showWordsOnCards !== false);
     }
     
@@ -56,7 +98,7 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     
     // Check which resources are already cached
     checkCachedResources();
-  }, []);
+  }, [isIPadDevice, isMobileDevice]);
   
   // Check which resources are already in the cache
   const checkCachedResources = async () => {
@@ -100,28 +142,67 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     }
   };
   
-  // Prepare the list of audio files
+  // Prepare audio sources
   const prepareAudioSources = () => {
-    // Vocabulary audio (now using .mp3)
-    const wordAudioSources = allPairs.map(pair => ({
-      type: 'word',
+    // Get all vocabulary audio files from allPairs
+    const vocabularyAudio = allPairs.map(pair => ({
+      type: 'vocabulary',
+      name: pair.word,
       path: `/sounds/vocabulary/${pair.word}.mp3`,
-      fullPath: `${window.location.origin}/sounds/vocabulary/${pair.word}.mp3`,
-      name: pair.word
+      fullPath: `${window.location.origin}/sounds/vocabulary/${pair.word}.mp3`
     }));
     
-    // Praise audio (now using .mp3)
-    const praiseAudioSources = Array.from({ length: 20 }, (_, i) => ({
-      type: 'praise',
-      path: `/sounds/praise/praise${String(i + 1).padStart(2, '0')}.mp3`,
-      fullPath: `${window.location.origin}/sounds/praise/praise${String(i + 1).padStart(2, '0')}.mp3`,
-      name: `Praise ${i + 1}`
-    }));
+    // Get praise audio files
+    const praiseAudio = Array.from({ length: 20 }, (_, i) => {
+      const num = String(i + 1).padStart(2, '0');
+      return {
+        type: 'praise',
+        name: `praise${num}`,
+        path: `/sounds/praise/praise${num}.mp3`,
+        fullPath: `${window.location.origin}/sounds/praise/praise${num}.mp3`
+      };
+    });
     
-    // Set audio sources and total resources
-    const allAudioSources = [...wordAudioSources, ...praiseAudioSources];
-    setAudioSources(allAudioSources);
-    setTotalResources(allPairs.length + allAudioSources.length);
+    // Add sound effects
+    const soundEffects = [
+      {
+        type: 'effect',
+        name: 'clapping',
+        path: '/sounds/clapping.mp3',
+        fullPath: `${window.location.origin}/sounds/clapping.mp3`
+      },
+      {
+        type: 'effect',
+        name: 'wrong',
+        path: '/sounds/wrong.mp3',
+        fullPath: `${window.location.origin}/sounds/wrong.mp3`
+      },
+      {
+        type: 'effect',
+        name: 'silent',
+        path: '/sounds/silent.mp3',
+        fullPath: `${window.location.origin}/sounds/silent.mp3`
+      }
+    ];
+    
+    // Combine all audio sources
+    setAudioSources([...vocabularyAudio, ...praiseAudio, ...soundEffects]);
+    
+    // Check for iOS device
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      
+    if (isIOS) {
+      // Add a touch event listener to initialize audio on iOS
+      const initIOSAudio = () => {
+        console.log("Initializing iOS audio");
+        const silentAudio = new Audio('/sounds/silent.mp3');
+        silentAudio.play().catch(err => console.log("Silent audio init error:", err));
+        document.removeEventListener('touchstart', initIOSAudio);
+      };
+      
+      document.addEventListener('touchstart', initIOSAudio);
+    }
   };
 
   const handleSave = () => {
@@ -305,7 +386,7 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     setPreloadProgress(0);
     
     // Calculate total resources
-    const totalItems = allPairs.length * 2 + 20; // Images + vocabulary audio + praise sounds
+    const totalItems = allPairs.length * 2 + 20 + 3; // Images + vocabulary audio + praise sounds + clapping/wrong/silent
     let processedItems = 0;
     
     try {
@@ -355,6 +436,43 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
         } catch (error) {
           addLog(`Error caching praise audio ${i}: ${error.message}`);
         }
+      }
+      
+      // Cache sound effects (clapping and wrong)
+      try {
+        const clappingUrl = `${window.location.origin}/sounds/clapping.mp3`;
+        await cacheResource(clappingUrl);
+        
+        processedItems++;
+        const percentage = Math.round((processedItems / totalItems) * 100);
+        setPreloadProgress(percentage);
+        addLog('Cached clapping sound effect');
+      } catch (error) {
+        addLog(`Error caching clapping sound: ${error.message}`);
+      }
+      
+      try {
+        const wrongUrl = `${window.location.origin}/sounds/wrong.mp3`;
+        await cacheResource(wrongUrl);
+        
+        processedItems++;
+        const percentage = Math.round((processedItems / totalItems) * 100);
+        setPreloadProgress(percentage);
+        addLog('Cached wrong sound effect');
+      } catch (error) {
+        addLog(`Error caching wrong sound: ${error.message}`);
+      }
+      
+      try {
+        const silentUrl = `${window.location.origin}/sounds/silent.mp3`;
+        await cacheResource(silentUrl);
+        
+        processedItems++;
+        const percentage = Math.round((processedItems / totalItems) * 100);
+        setPreloadProgress(percentage);
+        addLog('Cached silent sound for iOS audio initialization');
+      } catch (error) {
+        addLog(`Error caching silent sound: ${error.message}`);
       }
       
       // Verify cache status
@@ -557,6 +675,110 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+        </div>
+        
+        {/* Game settings */}
+        <div className="mb-6 border rounded p-3 bg-gray-50">
+          <h3 className="text-md font-semibold mb-3">Game Options</h3>
+          
+          {/* Number of picture choices */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Number of Pictures:</label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setNumChoices(2)}
+                className={`px-4 py-2 rounded ${numChoices === 2 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-200 text-gray-800'}`}
+              >
+                2 Pictures
+              </button>
+              
+              <button
+                onClick={() => setNumChoices(4)}
+                className={`px-4 py-2 rounded ${numChoices === 4 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-200 text-gray-800'}`}
+              >
+                4 Pictures
+              </button>
+              
+              {/* Only show 6 pictures option for mobile */}
+              {isMobileDevice && (
+                <button
+                  onClick={() => setNumChoices(6)}
+                  className={`px-4 py-2 rounded ${numChoices === 6 
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gray-200 text-gray-800'}`}
+                >
+                  6 Pictures
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {isIPadDevice ? "iPad supports 2 or 4 pictures" : 
+               isMobileDevice ? "Mobile supports 2, 4, or 6 pictures" : 
+               "Choose how many pictures to display"}
+            </p>
+          </div>
+          
+          {/* Sound enabled toggle */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Sound:</label>
+            <div className="flex items-center">
+              <button
+                onClick={() => setSoundEnabled(true)}
+                className={`px-4 py-2 rounded-l ${soundEnabled 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-200 text-gray-800'}`}
+              >
+                On
+              </button>
+              <button
+                onClick={() => setSoundEnabled(false)}
+                className={`px-4 py-2 rounded-r ${!soundEnabled 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-200 text-gray-800'}`}
+              >
+                Off
+              </button>
+            </div>
+          </div>
+          
+          {/* Show words on cards toggle */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Show Words on Cards:</label>
+            <div className="flex items-center">
+              <button
+                onClick={() => setShowWordsOnCards(true)}
+                className={`px-4 py-2 rounded-l ${showWordsOnCards 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-200 text-gray-800'}`}
+              >
+                Yes
+              </button>
+              <button
+                onClick={() => setShowWordsOnCards(false)}
+                className={`px-4 py-2 rounded-r ${!showWordsOnCards 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-gray-200 text-gray-800'}`}
+              >
+                No
+              </button>
+            </div>
+          </div>
+          
+          {/* Player name input */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Player Name (optional):</label>
+            <input
+              type="text"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              className="w-full p-2 border rounded"
+              placeholder="Enter player name"
+            />
+          </div>
         </div>
         
         {/* iOS friendly visual resource loader */}
