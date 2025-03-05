@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smiley Face Icon Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin: 10px;
+            display: block;
+        }
+        .download-link {
+            display: block;
+            margin: 5px 0 20px 10px;
+            color: #3498db;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .download-link:hover {
+            text-decoration: underline;
+        }
+        h2 {
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Smiley Face Icon Generator</h1>
+    <p>Below are smiley face icons in various sizes required for the PWA. Click the download links to save each icon.</p>
+    
+    <h2>App Icons</h2>
+    
+    <div id="icons-container"></div>
+    
+    <h2>Standard Icons</h2>
+    <div>
+        <canvas id="logo192" width="192" height="192"></canvas>
+        <a class="download-link" id="logo192-link" download="logo192.png" href="#">Download logo192.png</a>
+        
+        <canvas id="logo512" width="512" height="512"></canvas>
+        <a class="download-link" id="logo512-link" download="logo512.png" href="#">Download logo512.png</a>
+        
+        <canvas id="favicon" width="64" height="64"></canvas>
+        <a class="download-link" id="favicon-link" download="favicon.ico" href="#">Download favicon.ico</a>
+    </div>
+    
+    <script>
+        // Icon sizes from the manifest
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+        
+        // Function to draw a smiley face on a canvas
+        function drawSmiley(ctx, size) {
+            const radius = size / 2;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+            
+            // Draw yellow circle background
+            ctx.beginPath();
+            ctx.arc(radius, radius, radius - 1, 0, Math.PI * 2, true);
+            ctx.fillStyle = '#FFDE00'; // Bright yellow
+            ctx.fill();
+            
+            // Draw border
+            ctx.lineWidth = size / 24;
+            ctx.strokeStyle = '#FF9500'; // Orange border
+            ctx.stroke();
+            
+            // Draw eyes
+            const eyeRadius = size / 12;
+            const eyeY = radius * 0.7;
+            const leftEyeX = radius * 0.65;
+            const rightEyeX = radius * 1.35;
+            
+            // Left eye
+            ctx.beginPath();
+            ctx.arc(leftEyeX, eyeY, eyeRadius, 0, Math.PI * 2, true);
+            ctx.fillStyle = '#333333';
+            ctx.fill();
+            
+            // Right eye
+            ctx.beginPath();
+            ctx.arc(rightEyeX, eyeY, eyeRadius, 0, Math.PI * 2, true);
+            ctx.fillStyle = '#333333';
+            ctx.fill();
+            
+            // Draw smile
+            ctx.beginPath();
+            ctx.arc(radius, radius, radius * 0.6, 0.2 * Math.PI, 0.8 * Math.PI, false);
+            ctx.lineWidth = size / 16;
+            ctx.strokeStyle = '#333333';
+            ctx.stroke();
+        }
+        
+        // Create the icon canvases and download links
+        function createIconElements() {
+            const container = document.getElementById('icons-container');
+            
+            // Create the PWA icon canvases
+            sizes.forEach(size => {
+                const canvas = document.createElement('canvas');
+                canvas.id = `icon${size}`;
+                canvas.width = size;
+                canvas.height = size;
+                
+                const link = document.createElement('a');
+                link.className = 'download-link';
+                link.id = `icon${size}-link`;
+                link.download = `icon-${size}x${size}.png`;
+                link.href = '#';
+                link.textContent = `Download icon-${size}x${size}.png`;
+                
+                container.appendChild(canvas);
+                container.appendChild(link);
+                
+                const ctx = canvas.getContext('2d');
+                drawSmiley(ctx, size);
+                
+                // Set the download link
+                link.href = canvas.toDataURL('image/png');
+            });
+            
+            // Draw the standard icons
+            const logo192 = document.getElementById('logo192');
+            const logo512 = document.getElementById('logo512');
+            const favicon = document.getElementById('favicon');
+            
+            drawSmiley(logo192.getContext('2d'), 192);
+            drawSmiley(logo512.getContext('2d'), 512);
+            drawSmiley(favicon.getContext('2d'), 64);
+            
+            // Set the download links
+            document.getElementById('logo192-link').href = logo192.toDataURL('image/png');
+            document.getElementById('logo512-link').href = logo512.toDataURL('image/png');
+            document.getElementById('favicon-link').href = favicon.toDataURL('image/png');
+        }
+        
+        // Initialize when the page loads
+        window.onload = createIconElements;
+    </script>
+</body>
+</html> 
