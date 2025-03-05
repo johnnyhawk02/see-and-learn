@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="See and Learn" />
@@ -25,11 +25,14 @@
       text-align: center;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
     }
     
     .container {
       max-width: 500px;
-      padding: 30px;
+      width: 100%;
+      padding: 25px 15px;
       background-color: white;
       border-radius: 10px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -37,54 +40,56 @@
     
     h1 {
       color: #4b7bec;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
     
     p {
       line-height: 1.6;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
     
     .icon {
       font-size: 64px;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
     
     button {
       background-color: #4b7bec;
       color: white;
       border: none;
-      padding: 12px 20px;
-      border-radius: 5px;
+      padding: 15px 20px;
+      border-radius: 8px;
       font-size: 16px;
       cursor: pointer;
       transition: background-color 0.3s;
-      margin: 10px;
+      margin: 10px 0;
       font-weight: bold;
       -webkit-appearance: none;
-      width: 80%;
+      width: 90%;
       touch-action: manipulation;
+      -webkit-tap-highlight-color: rgba(0,0,0,0);
     }
     
-    button:hover,
     button:active {
       background-color: #3867d6;
+      transform: scale(0.98);
     }
 
     .button-container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-top: 20px;
+      margin-top: 15px;
       width: 100%;
     }
 
     .status {
-      margin-top: 20px;
+      margin-top: 15px;
       padding: 10px;
       border-radius: 5px;
       font-size: 14px;
       display: none;
+      word-break: break-word;
     }
 
     .status.success {
@@ -111,14 +116,34 @@
       border-radius: 50%;
       width: 30px;
       height: 30px;
-      animation: spin 2s linear infinite;
-      margin: 20px auto;
+      animation: spin 1s linear infinite;
+      margin: 15px auto;
       display: none;
     }
 
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+    
+    .debug-info {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #f8f9fa;
+      border-radius: 5px;
+      font-size: 12px;
+      text-align: left;
+      max-height: 100px;
+      overflow-y: auto;
+      display: none;
+    }
+    
+    .debug-toggle {
+      font-size: 12px;
+      color: #6c757d;
+      text-decoration: underline;
+      margin-top: 15px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -127,38 +152,69 @@
     <div class="icon">📶</div>
     <h1>You're Offline</h1>
     <p>It looks like you've lost your internet connection or the app failed to load from the cache.</p>
-    <p>Don't worry - if you've preloaded all resources, the app should still work!</p>
+    <p>Don't worry - we'll try to get the app working for you!</p>
     
     <div class="button-container">
       <button id="tryFromCache">Launch App from Cache</button>
-      <button id="directLaunch">Direct Launch (iOS)</button>
-      <button id="tryAgain">Try Again with Network</button>
+      <button id="tryIFrameLaunch">Launch via IFrame (iOS)</button>
+      <button id="directLaunch">Direct Root Launch</button>
+      <button id="tryAgain">Check Connection & Reload</button>
     </div>
 
     <div id="status" class="status"></div>
     <div id="loader" class="loader"></div>
+    
+    <div class="debug-toggle" id="debugToggle">Show Debug Info</div>
+    <div class="debug-info" id="debugInfo"></div>
   </div>
 
   <script>
     // Elements
     const tryFromCacheButton = document.getElementById('tryFromCache');
+    const tryIFrameLaunchButton = document.getElementById('tryIFrameLaunch');
     const directLaunchButton = document.getElementById('directLaunch');
     const tryAgainButton = document.getElementById('tryAgain');
     const statusEl = document.getElementById('status');
     const loaderEl = document.getElementById('loader');
+    const debugToggle = document.getElementById('debugToggle');
+    const debugInfo = document.getElementById('debugInfo');
     
-    // Detect iOS
+    // Detect device info
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isStandalone = window.navigator.standalone === true;
+    
+    // Add debug info
+    function addDebugInfo(message) {
+      const timestamp = new Date().toTimeString().split(' ')[0];
+      debugInfo.innerHTML += `<div>${timestamp}: ${message}</div>`;
+    }
+    
+    // Toggle debug info
+    debugToggle.addEventListener('click', () => {
+      if (debugInfo.style.display === 'block') {
+        debugInfo.style.display = 'none';
+        debugToggle.textContent = 'Show Debug Info';
+      } else {
+        debugInfo.style.display = 'block';
+        debugToggle.textContent = 'Hide Debug Info';
+      }
+    });
+    
+    // Log environment info
+    addDebugInfo(`Device: ${isIOS ? 'iOS' : 'Non-iOS'}, Browser: ${isSafari ? 'Safari' : 'Other'}`);
+    addDebugInfo(`Standalone: ${isStandalone ? 'Yes' : 'No'}`);
     
     // If we're not on iOS, hide the iOS-specific button
     if (!isIOS) {
-      directLaunchButton.style.display = 'none';
+      tryIFrameLaunchButton.style.display = 'none';
     }
 
     // Show a status message
     function showStatus(message, type) {
       statusEl.textContent = message;
       statusEl.className = `status ${type}`;
+      addDebugInfo(message);
     }
 
     // Show loader
@@ -171,7 +227,7 @@
       loaderEl.style.display = 'none';
     }
 
-    // Try to load the app from cache
+    // Try to load the app from cache using data URL approach
     tryFromCacheButton.addEventListener('click', async () => {
       showLoader();
       showStatus('Checking for cached app...', 'warning');
@@ -190,25 +246,29 @@
         // Try each cache version
         for (const version of cacheVersions) {
           try {
+            addDebugInfo(`Checking cache: ${version}...`);
             const cache = await caches.open(version);
-            if (!cache) continue;
-            
-            const indexResponse = await cache.match(new Request('/index.html'));
-            if (indexResponse) {
-              cachedIndex = indexResponse;
-              successVersion = version;
-              break;
+            if (!cache) {
+              addDebugInfo(`Cache ${version} not found`);
+              continue;
             }
             
-            // Try root path
-            const rootResponse = await cache.match(new Request('/'));
-            if (rootResponse) {
-              cachedIndex = rootResponse;
-              successVersion = version;
-              break;
+            // Try both index.html and root path
+            for (const path of ['/index.html', '/']) {
+              addDebugInfo(`Trying path: ${path} in cache ${version}`);
+              const response = await cache.match(new Request(path));
+              if (response) {
+                cachedIndex = response;
+                successVersion = version;
+                addDebugInfo(`Found at ${path} in ${version}!`);
+                break;
+              }
             }
+            
+            if (cachedIndex) break;
           } catch (err) {
             console.error(`Error checking cache ${version}:`, err);
+            addDebugInfo(`Error with ${version}: ${err.message}`);
           }
         }
         
@@ -222,28 +282,81 @@
             
             // Create a data URL from the HTML
             const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+            addDebugInfo('Created data URL from cached HTML');
             
             // Redirect after a short delay
             setTimeout(() => {
-              // For iOS, try to use window.location.replace for better compatibility
-              if (isIOS) {
+              addDebugInfo('Attempting to navigate to data URL...');
+              
+              // For iOS Safari, try this approach
+              if (isIOS && isSafari) {
                 window.location.replace(dataUrl);
               } else {
                 window.location.href = dataUrl;
               }
-            }, 1000);
+            }, 800);
           } catch (error) {
-            showStatus('Error converting cached HTML: ' + error.message, 'error');
+            showStatus('Error preparing cached HTML: ' + error.message, 'error');
+            addDebugInfo(`Preparation error: ${error.message}`);
             hideLoader();
           }
         } else {
           // No cached app found
+          addDebugInfo('No cached index found in any version');
           showStatus('Could not find app in any cache. You may need to use the app online first to cache resources.', 'error');
           hideLoader();
         }
       } catch (error) {
         console.error('Error loading from cache:', error);
+        addDebugInfo(`Cache error: ${error.message}`);
         showStatus('Error accessing cache: ' + error.message, 'error');
+        hideLoader();
+      }
+    });
+    
+    // Try to launch using an iframe (works better on iOS sometimes)
+    tryIFrameLaunchButton.addEventListener('click', () => {
+      showStatus('Attempting iframe launch for iOS...', 'warning');
+      showLoader();
+      addDebugInfo('Creating iframe for launch attempt');
+      
+      try {
+        // Create an iframe to load the cached page
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        
+        // Listen for load events
+        iframe.onload = () => {
+          addDebugInfo('IFrame loaded - trying to navigate to it');
+          showStatus('IFrame loaded, redirecting...', 'success');
+          
+          try {
+            // Try to navigate to the iframe's content
+            window.location.href = '/';
+          } catch (err) {
+            addDebugInfo(`IFrame navigation error: ${err.message}`);
+          }
+        };
+        
+        iframe.onerror = (err) => {
+          addDebugInfo(`IFrame error: ${err}`);
+          showStatus('IFrame launch failed', 'error');
+          hideLoader();
+        };
+        
+        // Try to load the root document in the iframe
+        setTimeout(() => {
+          try {
+            iframe.src = '/';
+            addDebugInfo('Set iframe src to /')
+          } catch (err) {
+            addDebugInfo(`Error setting iframe src: ${err.message}`);
+            hideLoader();
+          }
+        }, 500);
+      } catch (err) {
+        addDebugInfo(`General iframe error: ${err.message}`);
         hideLoader();
       }
     });
@@ -252,28 +365,43 @@
     directLaunchButton.addEventListener('click', () => {
       showStatus('Attempting direct launch...', 'warning');
       showLoader();
+      addDebugInfo('Attempting direct navigation to root');
       
       // Redirect to root
       setTimeout(() => {
-        // Try basic approaches for iOS
-        window.location.replace('/');
+        try {
+          if (isIOS && isSafari) {
+            window.location.replace('/');
+          } else {
+            window.location.href = '/';
+          }
+          addDebugInfo('Navigation initiated');
+        } catch (err) {
+          addDebugInfo(`Navigation error: ${err.message}`);
+        }
       }, 500);
     });
 
     // Try to refresh the page
     tryAgainButton.addEventListener('click', () => {
-      showStatus('Trying to reconnect...', 'warning');
+      showStatus('Checking connection & reloading...', 'warning');
       showLoader();
+      addDebugInfo('Force reloading with cache validation');
       
       // Force reload with cache validation
       setTimeout(() => {
-        window.location.reload(true);
+        try {
+          window.location.reload(true);
+        } catch (err) {
+          addDebugInfo(`Reload error: ${err.message}`);
+        }
       }, 500);
     });
 
     // Check if we're back online
     window.addEventListener('online', () => {
       showStatus('You are back online! Reloading...', 'success');
+      addDebugInfo('Online event detected');
       setTimeout(() => {
         window.location.reload(true);
       }, 800);
@@ -282,6 +410,7 @@
     // Attempt to check cache automatically
     window.addEventListener('DOMContentLoaded', async () => {
       try {
+        addDebugInfo('Checking available cache on page load');
         // Modern cache check
         if ('caches' in window) {
           let appFound = false;
@@ -300,21 +429,26 @@
               if (hasIndex) {
                 appFound = true;
                 showStatus(`Found cached app in ${version} - you can launch it using the buttons above`, 'success');
+                addDebugInfo(`Found index in ${version}`);
                 break;
               }
             } catch (err) {
               console.error(`Error checking cache ${version}:`, err);
+              addDebugInfo(`Error checking ${version}: ${err.message}`);
             }
           }
           
           if (!appFound) {
             showStatus('No cached app found. You need to use the app online first to cache resources.', 'warning');
+            addDebugInfo('No cached app found in any version');
           }
         } else {
           showStatus('Your browser does not support caching - offline mode won\'t work', 'error');
+          addDebugInfo('Cache API not supported in this browser');
         }
       } catch (error) {
         console.error('Error checking cache:', error);
+        addDebugInfo(`Cache check error: ${error.message}`);
       }
     });
   </script>
