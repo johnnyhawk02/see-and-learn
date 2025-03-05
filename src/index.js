@@ -16,6 +16,46 @@ window.onunhandledrejection = function(event) {
   console.error('Unhandled promise rejection:', event.reason);
 };
 
+// Add a global function to trigger caching of all resources
+// This can be called from the settings dialog
+window.cacheAllResourcesForOffline = function() {
+  return new Promise((resolve, reject) => {
+    if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
+      console.error('No service worker controlling this page');
+      return reject(new Error('Service worker not available'));
+    }
+    
+    console.log('Requesting service worker to cache all resources');
+    
+    // Create a message channel to get a response from the service worker
+    const messageChannel = new MessageChannel();
+    
+    // Set up the message listener for the response
+    messageChannel.port1.onmessage = (event) => {
+      if (event.data && event.data.type === 'CACHE_COMPLETE') {
+        if (event.data.success) {
+          console.log('Service worker successfully cached all resources');
+          resolve(true);
+        } else {
+          console.error('Service worker failed to cache resources:', event.data.error);
+          reject(new Error(event.data.error || 'Failed to cache resources'));
+        }
+      }
+    };
+    
+    // Send the message to the service worker
+    navigator.serviceWorker.controller.postMessage(
+      { type: 'CACHE_ALL_RESOURCES' },
+      [messageChannel.port2]
+    );
+    
+    // Set a timeout in case the service worker doesn't respond
+    setTimeout(() => {
+      reject(new Error('Service worker did not respond in time'));
+    }, 30000); // 30 second timeout
+  });
+};
+
 const container = document.getElementById('root');
 const root = createRoot(container);
 

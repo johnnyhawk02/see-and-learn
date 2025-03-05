@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="See and Learn" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" href="/logo192.png" />
   <title>See and Learn - Offline</title>
   <style>
     body {
@@ -20,6 +23,8 @@
       margin: 0;
       padding: 20px;
       text-align: center;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     
     .container {
@@ -49,15 +54,20 @@
       background-color: #4b7bec;
       color: white;
       border: none;
-      padding: 10px 20px;
+      padding: 12px 20px;
       border-radius: 5px;
       font-size: 16px;
       cursor: pointer;
       transition: background-color 0.3s;
       margin: 10px;
+      font-weight: bold;
+      -webkit-appearance: none;
+      width: 80%;
+      touch-action: manipulation;
     }
     
-    button:hover {
+    button:hover,
+    button:active {
       background-color: #3867d6;
     }
 
@@ -66,6 +76,7 @@
       flex-direction: column;
       align-items: center;
       margin-top: 20px;
+      width: 100%;
     }
 
     .status {
@@ -85,6 +96,12 @@
     .status.error {
       background-color: #f8d7da;
       color: #721c24;
+      display: block;
+    }
+
+    .status.warning {
+      background-color: #fff3cd;
+      color: #856404;
       display: block;
     }
 
@@ -114,6 +131,7 @@
     
     <div class="button-container">
       <button id="tryFromCache">Launch App from Cache</button>
+      <button id="directLaunch">Direct Launch (iOS)</button>
       <button id="tryAgain">Try Again with Network</button>
     </div>
 
@@ -124,9 +142,18 @@
   <script>
     // Elements
     const tryFromCacheButton = document.getElementById('tryFromCache');
+    const directLaunchButton = document.getElementById('directLaunch');
     const tryAgainButton = document.getElementById('tryAgain');
     const statusEl = document.getElementById('status');
     const loaderEl = document.getElementById('loader');
+    
+    // Detect iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    
+    // If we're not on iOS, hide the iOS-specific button
+    if (!isIOS) {
+      directLaunchButton.style.display = 'none';
+    }
 
     // Show a status message
     function showStatus(message, type) {
@@ -147,76 +174,144 @@
     // Try to load the app from cache
     tryFromCacheButton.addEventListener('click', async () => {
       showLoader();
+      showStatus('Checking for cached app...', 'warning');
+      
+      // Cache versions to check, newest first
+      const cacheVersions = [
+        'see-and-learn-cache-v3',
+        'see-and-learn-cache-v2',
+        'see-and-learn-cache-v1'
+      ];
+      
       try {
-        // Try to fetch the index.html from cache
-        const cache = await caches.open('see-and-learn-cache-v2');
-        const cachedIndex = await cache.match(new Request('/index.html'));
+        let cachedIndex = null;
+        let successVersion = '';
+        
+        // Try each cache version
+        for (const version of cacheVersions) {
+          try {
+            const cache = await caches.open(version);
+            if (!cache) continue;
+            
+            const indexResponse = await cache.match(new Request('/index.html'));
+            if (indexResponse) {
+              cachedIndex = indexResponse;
+              successVersion = version;
+              break;
+            }
+            
+            // Try root path
+            const rootResponse = await cache.match(new Request('/'));
+            if (rootResponse) {
+              cachedIndex = rootResponse;
+              successVersion = version;
+              break;
+            }
+          } catch (err) {
+            console.error(`Error checking cache ${version}:`, err);
+          }
+        }
         
         if (cachedIndex) {
-          // We found index.html in cache - get its text
-          const html = await cachedIndex.text();
+          // We found index.html in cache
+          showStatus(`Found app in cache (${successVersion}). Launching...`, 'success');
           
-          // Create a data URL from the HTML
-          const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
-          
-          // Redirect to the data URL (this will launch the app from the cached HTML)
-          showStatus('Launching app from cache...', 'success');
-          setTimeout(() => {
-            window.location.href = dataUrl;
-          }, 1000);
-        } else {
-          // Try older cache versions
-          const oldCache = await caches.open('see-and-learn-cache-v1');
-          const oldCachedIndex = await oldCache.match(new Request('/index.html'));
-          
-          if (oldCachedIndex) {
-            const html = await oldCachedIndex.text();
+          try {
+            // Get its text
+            const html = await cachedIndex.text();
+            
+            // Create a data URL from the HTML
             const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
-            showStatus('Launching app from older cache...', 'success');
+            
+            // Redirect after a short delay
             setTimeout(() => {
-              window.location.href = dataUrl;
+              // For iOS, try to use window.location.replace for better compatibility
+              if (isIOS) {
+                window.location.replace(dataUrl);
+              } else {
+                window.location.href = dataUrl;
+              }
             }, 1000);
-          } else {
-            showStatus('Could not find app in cache. Please try again when you have an internet connection.', 'error');
+          } catch (error) {
+            showStatus('Error converting cached HTML: ' + error.message, 'error');
+            hideLoader();
           }
+        } else {
+          // No cached app found
+          showStatus('Could not find app in any cache. You may need to use the app online first to cache resources.', 'error');
+          hideLoader();
         }
       } catch (error) {
         console.error('Error loading from cache:', error);
-        showStatus('Error loading app from cache: ' + error.message, 'error');
-      } finally {
+        showStatus('Error accessing cache: ' + error.message, 'error');
         hideLoader();
       }
+    });
+    
+    // Direct launch for iOS (simple approach)
+    directLaunchButton.addEventListener('click', () => {
+      showStatus('Attempting direct launch...', 'warning');
+      showLoader();
+      
+      // Redirect to root
+      setTimeout(() => {
+        // Try basic approaches for iOS
+        window.location.replace('/');
+      }, 500);
     });
 
     // Try to refresh the page
     tryAgainButton.addEventListener('click', () => {
-      showStatus('Trying to reconnect...', 'success');
+      showStatus('Trying to reconnect...', 'warning');
       showLoader();
+      
+      // Force reload with cache validation
       setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+        window.location.reload(true);
+      }, 500);
     });
 
     // Check if we're back online
     window.addEventListener('online', () => {
       showStatus('You are back online! Reloading...', 'success');
       setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+        window.location.reload(true);
+      }, 800);
     });
     
-    // Attempt to launch app from cache automatically
+    // Attempt to check cache automatically
     window.addEventListener('DOMContentLoaded', async () => {
       try {
-        // Check if we have indexes cached
-        const cache = await caches.open('see-and-learn-cache-v2');
-        const keys = await cache.keys();
-        const hasIndex = keys.some(request => 
-          request.url.endsWith('/index.html') || 
-          request.url.endsWith('/'));
+        // Modern cache check
+        if ('caches' in window) {
+          let appFound = false;
           
-        if (hasIndex) {
-          showStatus('Found cached app - you can launch it with the button above', 'success');
+          // Check all cache versions
+          for (const version of ['see-and-learn-cache-v3', 'see-and-learn-cache-v2', 'see-and-learn-cache-v1']) {
+            try {
+              const cache = await caches.open(version);
+              if (!cache) continue;
+              
+              const keys = await cache.keys();
+              const hasIndex = keys.some(request => 
+                request.url.endsWith('/index.html') || 
+                request.url.endsWith('/'));
+                
+              if (hasIndex) {
+                appFound = true;
+                showStatus(`Found cached app in ${version} - you can launch it using the buttons above`, 'success');
+                break;
+              }
+            } catch (err) {
+              console.error(`Error checking cache ${version}:`, err);
+            }
+          }
+          
+          if (!appFound) {
+            showStatus('No cached app found. You need to use the app online first to cache resources.', 'warning');
+          }
+        } else {
+          showStatus('Your browser does not support caching - offline mode won\'t work', 'error');
         }
       } catch (error) {
         console.error('Error checking cache:', error);

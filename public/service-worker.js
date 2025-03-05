@@ -1,7 +1,7 @@
 // Cache names
-const CACHE_NAME = 'see-and-learn-cache-v2';
-const RUNTIME_CACHE = 'see-and-learn-runtime-v2';
-const PRELOAD_CACHE = 'see-and-learn-preload-v2';
+const CACHE_NAME = 'see-and-learn-cache-v3';
+const RUNTIME_CACHE = 'see-and-learn-runtime-v3';
+const PRELOAD_CACHE = 'see-and-learn-preload-v3';
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
@@ -10,48 +10,100 @@ const PRECACHE_ASSETS = [
   '/offline.html',
   '/manifest.json',
   '/favicon.ico',
+  '/logo192.png',
+  '/logo512.png',
   '/static/js/main.chunk.js',
   '/static/js/0.chunk.js',
   '/static/js/bundle.js',
-  '/static/css/main.chunk.css',
-  '/icons/icon-72x72.png',
-  '/icons/icon-96x96.png', 
-  '/icons/icon-128x128.png',
-  '/icons/icon-144x144.png',
-  '/icons/icon-152x152.png',
-  '/icons/icon-192x192.png',
-  '/icons/icon-384x384.png',
-  '/icons/icon-512x512.png',
+  '/static/css/main.chunk.css'
 ];
+
+// This function will try to cache all required resources
+// even if they're not in the PRECACHE_ASSETS list
+const cacheAdditionalResources = async () => {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    
+    // Try to cache splash screens and icons if they exist
+    const resourcesToPrefetch = [
+      // Splash screens from index.html
+      '/splashscreens/iphone5_splash.png',
+      '/splashscreens/iphone6_splash.png',
+      '/splashscreens/iphoneplus_splash.png',
+      '/splashscreens/iphonex_splash.png',
+      '/splashscreens/ipad_splash.png',
+      // Icons from index.html
+      '/icons/icon-192x192.png',
+      '/icons/icon-152x152.png'
+    ];
+    
+    // For each resource, try to fetch and cache it
+    // If it doesn't exist, we'll just catch the error and continue
+    for (const resource of resourcesToPrefetch) {
+      try {
+        const response = await fetch(resource);
+        if (response.ok) {
+          await cache.put(resource, response);
+          console.log(`[Service Worker] Successfully cached additional resource: ${resource}`);
+        }
+      } catch (err) {
+        console.log(`[Service Worker] Resource not available to cache: ${resource}`);
+      }
+    }
+  } catch (err) {
+    console.error('[Service Worker] Error caching additional resources:', err);
+  }
+};
 
 // Detect if it's a mobile user agent
 const isMobileUserAgent = (userAgent) => {
   return /iPhone|iPad|iPod|Android/i.test(userAgent);
 };
 
+// Detect if it's iOS
+const isIOS = (userAgent) => {
+  return /iPad|iPhone|iPod/.test(userAgent) && !userAgent.includes('Windows');
+};
+
 // Install event - precache static assets
 self.addEventListener('install', event => {
+  console.log('[Service Worker] Installing new service worker...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Pre-caching assets');
+        console.log('[Service Worker] Pre-caching assets');
         return cache.addAll(PRECACHE_ASSETS);
       })
-      .then(() => self.skipWaiting())
+      .then(() => {
+        console.log('[Service Worker] Successfully installed and precached assets');
+        // Try to cache additional resources like icons and splash screens
+        return cacheAdditionalResources();
+      })
+      .then(() => {
+        return self.skipWaiting();
+      })
+      .catch(error => {
+        console.error('[Service Worker] Pre-caching failed:', error);
+      })
   );
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', event => {
+  console.log('[Service Worker] Activating new service worker...');
   const currentCaches = [CACHE_NAME, RUNTIME_CACHE, PRELOAD_CACHE];
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return cacheNames.filter(cacheName => !currentCaches.includes(cacheName));
     }).then(cachesToDelete => {
       return Promise.all(cachesToDelete.map(cacheToDelete => {
+        console.log('[Service Worker] Deleting old cache:', cacheToDelete);
         return caches.delete(cacheToDelete);
       }));
-    }).then(() => self.clients.claim())
+    }).then(() => {
+      console.log('[Service Worker] Now controlling all clients');
+      return self.clients.claim();
+    })
   );
 });
 
@@ -60,12 +112,34 @@ const findInCache = async (request) => {
   // Check in all our caches
   const cacheNames = [PRELOAD_CACHE, CACHE_NAME, RUNTIME_CACHE];
   for (const cacheName of cacheNames) {
-    const cache = await caches.open(cacheName);
-    const cachedResponse = await cache.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
+    try {
+      const cache = await caches.open(cacheName);
+      const cachedResponse = await cache.match(request);
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+    } catch (err) {
+      console.error(`[Service Worker] Error checking cache ${cacheName}:`, err);
     }
   }
+  
+  // Check older cache versions
+  try {
+    const oldCacheNames = ['see-and-learn-cache-v2', 'see-and-learn-cache-v1', 'see-and-learn-preload-v2', 'see-and-learn-preload-v1'];
+    for (const cacheName of oldCacheNames) {
+      const cache = await caches.open(cacheName);
+      const cachedResponse = await cache.match(request);
+      if (cachedResponse) {
+        // Found in old cache, copy to new cache
+        const newCache = await caches.open(CACHE_NAME);
+        await newCache.put(request, cachedResponse.clone());
+        return cachedResponse;
+      }
+    }
+  } catch (err) {
+    console.error('[Service Worker] Error checking old caches:', err);
+  }
+  
   return null;
 };
 
@@ -74,12 +148,16 @@ self.addEventListener('fetch', event => {
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) return;
 
+  // Log requests for debugging
+  console.log(`[Service Worker] Fetching resource: ${event.request.url}`);
+
   // Handle navigation requests (like opening the app)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       (async () => {
         try {
           // Try to fetch the page from the network first
+          console.log('[Service Worker] Navigation request, trying network first');
           const networkResponse = await fetch(event.request);
           
           // Cache the fresh page
@@ -88,22 +166,26 @@ self.addEventListener('fetch', event => {
           
           return networkResponse;
         } catch (error) {
-          console.log('Navigation request failed, falling back to cache', error);
+          console.log('[Service Worker] Navigation request failed, falling back to cache', error);
           
           // If we're offline, try to serve from cache
           const cachedResponse = await findInCache(event.request);
           if (cachedResponse) {
+            console.log('[Service Worker] Serving navigation from cache');
             return cachedResponse;
           }
           
-          // If no cached navigation response, serve the index.html from cache
+          // If no cached navigation response, try to serve the index.html from cache
+          console.log('[Service Worker] Trying to serve index.html from cache');
           const indexResponse = await findInCache(new Request('/index.html'));
           if (indexResponse) {
+            console.log('[Service Worker] Serving index.html from cache');
             return indexResponse;
           }
           
           // If that fails too, show the offline page
-          return caches.match('/offline.html');
+          console.log('[Service Worker] Falling back to offline.html');
+          return findInCache(new Request('/offline.html'));
         }
       })()
     );
@@ -184,10 +266,49 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// Handle messages from clients
-self.addEventListener('message', event => {
+// Add a message handler to respond to messages from clients
+self.addEventListener('message', (event) => {
+  console.log('[Service Worker] Message received:', event.data);
+  
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+    console.log('[Service Worker] Skip waiting and activating new service worker');
+  }
+  
+  if (event.data && event.data.type === 'CHECK_FOR_UPDATES') {
+    console.log('[Service Worker] Checking for updates...');
+    // Force cache update by re-fetching some key resources
+    caches.open(CACHE_NAME).then(cache => {
+      cache.add('/index.html').then(() => {
+        console.log('[Service Worker] Re-cached index.html');
+      }).catch(err => {
+        console.error('[Service Worker] Failed to re-cache index.html', err);
+      });
+    });
+  }
+  
+  if (event.data && event.data.type === 'CACHE_ALL_RESOURCES') {
+    console.log('[Service Worker] Caching all resources requested by client');
+    // Use the additional resources cacher
+    cacheAdditionalResources().then(() => {
+      // If the client provided a callback channel, post back when done
+      if (event.ports && event.ports[0]) {
+        event.ports[0].postMessage({
+          type: 'CACHE_COMPLETE',
+          success: true
+        });
+      }
+    }).catch(err => {
+      console.error('[Service Worker] Failed to cache additional resources', err);
+      // Notify client of failure
+      if (event.ports && event.ports[0]) {
+        event.ports[0].postMessage({
+          type: 'CACHE_COMPLETE',
+          success: false,
+          error: err.message
+        });
+      }
+    });
   }
 });
 
