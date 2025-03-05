@@ -230,7 +230,7 @@ const PictureCard = ({ item, onClick, onLongPress, disabled, isIncorrect, showWo
             opacity: isLoaded ? 1 : 0,
             transition: 'opacity 0.3s ease, filter 0.3s ease',
             willChange: 'opacity',
-            filter: isIncorrect ? 'grayscale(100%) brightness(0.8) sepia(1) hue-rotate(-50deg) saturate(5)' : 'none',
+            filter: isIncorrect ? 'grayscale(100%)' : 'none',
           }}
         />
         

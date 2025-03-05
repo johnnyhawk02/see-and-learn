@@ -6,12 +6,18 @@ const IncorrectFlash = ({ active, currentWord, onSpeak }) => {
 
   return (
     <div 
-      className="fixed inset-0 bg-red-500 bg-opacity-100 flex items-center justify-center z-40"
+      className="fixed inset-0 bg-red-500 bg-opacity-90 flex items-center justify-center z-50"
       style={{ 
         animation: 'fadeIn 0.3s ease-out',
         pointerEvents: 'none'
       }}
     >
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
       <div className="text-center">
         {currentWord && (
           <div 

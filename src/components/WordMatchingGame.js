@@ -376,31 +376,26 @@ const WordMatchingGame = ({ settings }) => {
           
           // IMPORTANT: Reset animation state to allow interactions in the next round
           setIsAnimating(false);
-          
-          // Don't speak new word here to avoid duplication
-          // if (newTargetWord && newTargetWord.word) {
-          //   speakWord(newTargetWord.word);
-          // }
         }, 800);
       }, 1500);
     } else {
       // Add to incorrect selections
       setIncorrectSelections(prev => new Set([...prev, item.id]));
       
-      // Don't show incorrect flash
-      // setShowIncorrect(false);
-      
-      // Play wrong sound
-      playSound('/sounds/wrong.mp3', 1, () => {
+      // Play wrong sound and show incorrect flash
+      playSound('/sounds/wrong.mp3', 0.7, () => {
+        // Show incorrect flash
+        setShowIncorrect(true);
+        
         // Speak correct word after delay
         setTimeout(() => {
           if (currentWord && currentWord.word) {
             speakWord(currentWord.word);
           }
           
-          // Allow interactions again after speaking
+          // Hide incorrect flash after 1.5 seconds
           setTimeout(() => {
-            // setShowIncorrect(false);
+            setShowIncorrect(false);
             clearTimeout(safetyTimer);
             setIsAnimating(false);
           }, 1500);
