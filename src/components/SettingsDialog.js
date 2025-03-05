@@ -1,34 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { allPairs } from '../data/gameData';
 
-const SettingsDialog = ({ isOpen, onClose, onSave }) => {
-  const [playerName, setPlayerName] = useState('');
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [numChoices, setNumChoices] = useState(4);
-  const [showWordsOnCards, setShowWordsOnCards] = useState(true);
+const SettingsDialog = ({ isOpen, onClose }) => {
   const [isPreloading, setIsPreloading] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState(0);
-  
-  // Device detection states
-  const [isIPadDevice, setIsIPadDevice] = useState(false);
-  const [isMobileDevice, setIsMobileDevice] = useState(false);
-  
-  // States for visual resource loading
   const [loadingMode, setLoadingMode] = useState('none'); // 'none', 'images', 'audio'
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loadedCount, setLoadedCount] = useState(0);
-  const [totalResources, setTotalResources] = useState(0);
   const [currentResource, setCurrentResource] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Debug logging state
   const [logMessages, setLogMessages] = useState([]);
-  
-  // Cache status tracking
   const [cachedItems, setCachedItems] = useState({});
-  
-  // Audio states
   const [audioSources, setAudioSources] = useState([]);
   const [currentAudio, setCurrentAudio] = useState(null);
   
@@ -42,64 +25,15 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     console.log(`[SettingsDialog] ${message}`);
   };
 
-  // Detect device type on mount
-  useEffect(() => {
-    const checkDeviceType = () => {
-      // Check for iPad specifically
-      const isIPad = /iPad/i.test(navigator.userAgent) || 
-        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1 && window.innerWidth >= 768 && window.innerWidth <= 1024);
-      
-      // Check for mobile phones (iPhone, Android phones)
-      const isMobile = /iPhone|Android/i.test(navigator.userAgent) && window.innerWidth <= 480;
-      
-      setIsIPadDevice(isIPad);
-      setIsMobileDevice(isMobile);
-      
-      console.log(`Device detection: iPad=${isIPad}, Mobile=${isMobile}`);
-    };
-    
-    checkDeviceType();
-    window.addEventListener('resize', checkDeviceType);
-    return () => window.removeEventListener('resize', checkDeviceType);
-  }, []);
-
   // Load saved settings when component mounts
   useEffect(() => {
-    const savedSettings = localStorage.getItem('gameSettings');
-    if (savedSettings) {
-      const settings = JSON.parse(savedSettings);
-      setPlayerName(settings.playerName || '');
-      setSoundEnabled(settings.soundEnabled !== false);
-      
-      // Ensure the number of choices is appropriate for the device
-      let savedChoices = settings.numChoices || 4;
-      
-      // For iPad, only allow 2 or 4 choices
-      if (isIPadDevice) {
-        savedChoices = savedChoices <= 2 ? 2 : 4;
-      } 
-      // For mobile, allow 2, 4, or 6 choices
-      else if (isMobileDevice) {
-        if (savedChoices <= 2) savedChoices = 2;
-        else if (savedChoices <= 4) savedChoices = 4;
-        else savedChoices = 6;
-      }
-      // For desktop, default to 4
-      else {
-        savedChoices = savedChoices === 2 ? 2 : 4;
-      }
-      
-      setNumChoices(savedChoices);
-      setShowWordsOnCards(settings.showWordsOnCards !== false);
-    }
-    
     // Prepare audio sources
     prepareAudioSources();
     
     // Check which resources are already cached
     checkCachedResources();
-  }, [isIPadDevice, isMobileDevice]);
-  
+  }, []);
+
   // Check which resources are already in the cache
   const checkCachedResources = async () => {
     try {
@@ -118,13 +52,13 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
         cachedStatus[imageUrl] = cachedUrls.includes(imageUrl);
       }
       
-      // Check vocabulary audio (now using .mp3)
+      // Check vocabulary audio
       for (const pair of allPairs) {
         const audioUrl = `${window.location.origin}/sounds/vocabulary/${pair.word}.mp3`;
         cachedStatus[audioUrl] = cachedUrls.includes(audioUrl);
       }
       
-      // Check praise audio (now using .mp3)
+      // Check praise audio
       for (let i = 1; i <= 20; i++) {
         const praiseFile = `/sounds/praise/praise${String(i).padStart(2, '0')}.mp3`;
         const audioUrl = `${window.location.origin}${praiseFile}`;
@@ -187,34 +121,6 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     
     // Combine all audio sources
     setAudioSources([...vocabularyAudio, ...praiseAudio, ...soundEffects]);
-    
-    // Check for iOS device
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      
-    if (isIOS) {
-      // Add a touch event listener to initialize audio on iOS
-      const initIOSAudio = () => {
-        console.log("Initializing iOS audio");
-        const silentAudio = new Audio('/sounds/silent.mp3');
-        silentAudio.play().catch(err => console.log("Silent audio init error:", err));
-        document.removeEventListener('touchstart', initIOSAudio);
-      };
-      
-      document.addEventListener('touchstart', initIOSAudio);
-    }
-  };
-
-  const handleSave = () => {
-    const settings = {
-      playerName,
-      soundEnabled,
-      numChoices,
-      showWordsOnCards,
-    };
-    localStorage.setItem('gameSettings', JSON.stringify(settings));
-    onSave(settings);
-    onClose();
   };
 
   // Manually cache a resource using Cache API
@@ -392,9 +298,6 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     try {
       addLog('Starting force download of all resources');
       
-      // Open cache
-      const cache = await caches.open(CACHE_NAME);
-      
       // Cache all images
       for (const pair of allPairs) {
         try {
@@ -409,7 +312,7 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
         }
       }
       
-      // Cache all vocabulary audio (now using .mp3)
+      // Cache all vocabulary audio
       for (const pair of allPairs) {
         try {
           const audioUrl = `${window.location.origin}/sounds/vocabulary/${pair.word}.mp3`;
@@ -423,7 +326,7 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
         }
       }
       
-      // Cache all praise audio (now using .mp3)
+      // Cache all praise audio
       for (let i = 1; i <= 20; i++) {
         try {
           const praiseFile = `/sounds/praise/praise${String(i).padStart(2, '0')}.mp3`;
@@ -438,7 +341,7 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
         }
       }
       
-      // Cache sound effects (clapping and wrong)
+      // Cache sound effects
       try {
         const clappingUrl = `${window.location.origin}/sounds/clapping.mp3`;
         await cacheResource(clappingUrl);
@@ -666,7 +569,7 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Game Settings</h2>
+          <h2 className="text-xl font-bold">Resource Manager</h2>
           <button 
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -675,110 +578,6 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-        </div>
-        
-        {/* Game settings */}
-        <div className="mb-6 border rounded p-3 bg-gray-50">
-          <h3 className="text-md font-semibold mb-3">Game Options</h3>
-          
-          {/* Number of picture choices */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Number of Pictures:</label>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setNumChoices(2)}
-                className={`px-4 py-2 rounded ${numChoices === 2 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-200 text-gray-800'}`}
-              >
-                2 Pictures
-              </button>
-              
-              <button
-                onClick={() => setNumChoices(4)}
-                className={`px-4 py-2 rounded ${numChoices === 4 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-200 text-gray-800'}`}
-              >
-                4 Pictures
-              </button>
-              
-              {/* Only show 6 pictures option for mobile */}
-              {isMobileDevice && (
-                <button
-                  onClick={() => setNumChoices(6)}
-                  className={`px-4 py-2 rounded ${numChoices === 6 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-gray-200 text-gray-800'}`}
-                >
-                  6 Pictures
-                </button>
-              )}
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {isIPadDevice ? "iPad supports 2 or 4 pictures" : 
-               isMobileDevice ? "Mobile supports 2, 4, or 6 pictures" : 
-               "Choose how many pictures to display"}
-            </p>
-          </div>
-          
-          {/* Sound enabled toggle */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Sound:</label>
-            <div className="flex items-center">
-              <button
-                onClick={() => setSoundEnabled(true)}
-                className={`px-4 py-2 rounded-l ${soundEnabled 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-200 text-gray-800'}`}
-              >
-                On
-              </button>
-              <button
-                onClick={() => setSoundEnabled(false)}
-                className={`px-4 py-2 rounded-r ${!soundEnabled 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-200 text-gray-800'}`}
-              >
-                Off
-              </button>
-            </div>
-          </div>
-          
-          {/* Show words on cards toggle */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Show Words on Cards:</label>
-            <div className="flex items-center">
-              <button
-                onClick={() => setShowWordsOnCards(true)}
-                className={`px-4 py-2 rounded-l ${showWordsOnCards 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-200 text-gray-800'}`}
-              >
-                Yes
-              </button>
-              <button
-                onClick={() => setShowWordsOnCards(false)}
-                className={`px-4 py-2 rounded-r ${!showWordsOnCards 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-gray-200 text-gray-800'}`}
-              >
-                No
-              </button>
-            </div>
-          </div>
-          
-          {/* Player name input */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">Player Name (optional):</label>
-            <input
-              type="text"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              className="w-full p-2 border rounded"
-              placeholder="Enter player name"
-            />
-          </div>
         </div>
         
         {/* iOS friendly visual resource loader */}
@@ -792,15 +591,9 @@ const SettingsDialog = ({ isOpen, onClose, onSave }) => {
         <div className="flex justify-end mt-4">
           <button
             onClick={onClose}
-            className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mr-2"
+            className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded"
           >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-          >
-            Start Game
+            Close
           </button>
         </div>
       </div>
