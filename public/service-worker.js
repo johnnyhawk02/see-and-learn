@@ -1,7 +1,7 @@
 // Cache names
-const CACHE_NAME = 'see-and-learn-cache-v1';
-const RUNTIME_CACHE = 'see-and-learn-runtime-v1';
-const PRELOAD_CACHE = 'see-and-learn-preload-v1';
+const CACHE_NAME = 'see-and-learn-cache-v2';
+const RUNTIME_CACHE = 'see-and-learn-runtime-v2';
+const PRELOAD_CACHE = 'see-and-learn-preload-v2';
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
@@ -13,6 +13,7 @@ const PRECACHE_ASSETS = [
   '/static/js/main.chunk.js',
   '/static/js/0.chunk.js',
   '/static/js/bundle.js',
+  '/static/css/main.chunk.css',
   '/icons/icon-72x72.png',
   '/icons/icon-96x96.png', 
   '/icons/icon-128x128.png',
@@ -54,14 +55,65 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch event - cache-first for preloaded resources, network-first for others
+// Helper function to check all caches for a match
+const findInCache = async (request) => {
+  // Check in all our caches
+  const cacheNames = [PRELOAD_CACHE, CACHE_NAME, RUNTIME_CACHE];
+  for (const cacheName of cacheNames) {
+    const cache = await caches.open(cacheName);
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+  }
+  return null;
+};
+
+// Fetch event - handle all requests
 self.addEventListener('fetch', event => {
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) return;
 
+  // Handle navigation requests (like opening the app)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      (async () => {
+        try {
+          // Try to fetch the page from the network first
+          const networkResponse = await fetch(event.request);
+          
+          // Cache the fresh page
+          const cache = await caches.open(RUNTIME_CACHE);
+          cache.put(event.request, networkResponse.clone());
+          
+          return networkResponse;
+        } catch (error) {
+          console.log('Navigation request failed, falling back to cache', error);
+          
+          // If we're offline, try to serve from cache
+          const cachedResponse = await findInCache(event.request);
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          
+          // If no cached navigation response, serve the index.html from cache
+          const indexResponse = await findInCache(new Request('/index.html'));
+          if (indexResponse) {
+            return indexResponse;
+          }
+          
+          // If that fails too, show the offline page
+          return caches.match('/offline.html');
+        }
+      })()
+    );
+    return;
+  }
+
   // Check if this is a preloaded resource
   const isPreloadedResource = 
     event.request.url.includes('/images/') || 
+    event.request.url.includes('/card-images/') || 
     event.request.url.includes('/sounds/vocabulary/') ||
     event.request.url.includes('/sounds/praise/');
   
@@ -72,22 +124,18 @@ self.addEventListener('fetch', event => {
 
   event.respondWith(
     (async () => {
-      // Check if the client is mobile
-      const client = await clients.get(event.clientId);
-      const isMobile = client ? isMobileUserAgent(client.userAgent) : false;
-      
-      // For preloaded resources, try cache first
-      if (isPreloadedResource) {
-        const preloadCache = await caches.open(PRELOAD_CACHE);
-        const cachedResponse = await preloadCache.match(event.request);
-        if (cachedResponse) {
-          return cachedResponse;
-        }
+      // First check if we have it in any cache
+      const cachedResponse = await findInCache(event.request);
+      if (cachedResponse) {
+        return cachedResponse;
       }
 
-      // For all other requests, try network first
+      // Try network if not in cache
       try {
         // Special handling for audio files on mobile
+        const client = await clients.get(event.clientId);
+        const isMobile = client ? isMobileUserAgent(client.userAgent) : false;
+        
         if (isMobile && isAudioResource) {
           // Force a timeout for audio requests on mobile to prevent hanging
           const timeoutPromise = new Promise((_, reject) => {
@@ -98,7 +146,7 @@ self.addEventListener('fetch', event => {
           const response = await Promise.race([fetchPromise, timeoutPromise])
             .catch(() => {
               console.log('Audio request timeout on mobile, serving from cache if available');
-              return caches.match(event.request);
+              return findInCache(event.request);
             });
             
           if (response && response.status === 200) {
@@ -111,7 +159,7 @@ self.addEventListener('fetch', event => {
         
         // Standard handling for other resources
         const response = await fetch(event.request);
-        if (response.status === 200) {
+        if (response && response.status === 200) {
           const cache = await caches.open(
             isPreloadedResource ? PRELOAD_CACHE : RUNTIME_CACHE
           );
@@ -119,10 +167,7 @@ self.addEventListener('fetch', event => {
         }
         return response;
       } catch (error) {
-        const cachedResponse = await caches.match(event.request);
-        if (cachedResponse) {
-          return cachedResponse;
-        }
+        console.error('Fetch failed:', error);
         
         // For navigation requests, fallback to offline.html
         if (event.request.mode === 'navigate') {
@@ -155,9 +200,20 @@ self.addEventListener('fetch', event => {
       (url.pathname.endsWith('.wav') || url.pathname.endsWith('.mp3'))) {
     
     event.respondWith(
-      caches.open(PRELOAD_CACHE).then(async cache => {
-        // Try to find a cached response
-        const cachedResponse = await cache.match(event.request.url);
+      (async () => {
+        // Try to find a cached response in any cache
+        let cachedResponse = null;
+        const cacheNames = [PRELOAD_CACHE, CACHE_NAME, RUNTIME_CACHE];
+        
+        for (const cacheName of cacheNames) {
+          const cache = await caches.open(cacheName);
+          const response = await cache.match(event.request.url);
+          if (response) {
+            cachedResponse = response;
+            break;
+          }
+        }
+        
         if (!cachedResponse) {
           // If not in cache, fetch from network
           return fetch(event.request);
@@ -167,7 +223,7 @@ self.addEventListener('fetch', event => {
         const rangeHeader = event.request.headers.get('range');
         const rangeMatch = rangeHeader.match(/bytes=(\d+)-(\d*)/);
         const start = parseInt(rangeMatch[1], 10);
-        const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : cachedResponse.blob().then(blob => blob.size - 1);
+        const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : await cachedResponse.blob().then(blob => blob.size - 1);
         
         // Clone the response and create a new response with the requested range
         return cachedResponse.blob().then(blob => {
@@ -183,7 +239,7 @@ self.addEventListener('fetch', event => {
           });
           return slicedResponse;
         });
-      }).catch(() => fetch(event.request))
+      })().catch(() => fetch(event.request))
     );
   }
 }); 

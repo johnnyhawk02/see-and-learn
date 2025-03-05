@@ -9,7 +9,10 @@ const isLocalhost = Boolean(
 );
 
 export function register(config) {
-  if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
+  // For iOS: Always register the service worker, even in development mode
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  
+  if ((process.env.NODE_ENV === 'production' || isIOS) && 'serviceWorker' in navigator) {
     // The URL constructor is available in all browsers that support SW.
     const publicUrl = new URL(process.env.PUBLIC_URL, window.location.href);
     if (publicUrl.origin !== window.location.origin) {
@@ -38,6 +41,24 @@ export function register(config) {
         registerValidSW(swUrl, config);
       }
     });
+    
+    // Check for iOS standalone mode (added to home screen)
+    if (window.navigator.standalone === true) {
+      console.log('Running in iOS standalone mode (added to home screen)');
+      
+      // Special handling for standalone mode
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          console.log('App became visible in standalone mode');
+          // Force update checks when app becomes visible again
+          if (navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ 
+              type: 'CHECK_FOR_UPDATES' 
+            });
+          }
+        }
+      });
+    }
   }
 }
 
@@ -77,6 +98,11 @@ function registerValidSW(swUrl, config) {
           }
         };
       };
+      
+      // If we have a controller, it means the service worker is active
+      if (navigator.serviceWorker.controller) {
+        console.log('Service worker is active and controlling the page');
+      }
     })
     .catch((error) => {
       console.error('Error during service worker registration:', error);
@@ -108,6 +134,13 @@ function checkValidServiceWorker(swUrl, config) {
     })
     .catch(() => {
       console.log('No internet connection found. App is running in offline mode.');
+      
+      // For offline case, try to use the service worker anyway
+      try {
+        registerValidSW(swUrl, config);
+      } catch (err) {
+        console.error('Failed to register service worker in offline mode:', err);
+      }
     });
 }
 

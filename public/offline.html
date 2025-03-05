@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>See and Learn - Offline</title>
   <style>
     body {
@@ -52,10 +54,54 @@
       font-size: 16px;
       cursor: pointer;
       transition: background-color 0.3s;
+      margin: 10px;
     }
     
     button:hover {
       background-color: #3867d6;
+    }
+
+    .button-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    .status {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .status.success {
+      background-color: #d4edda;
+      color: #155724;
+      display: block;
+    }
+
+    .status.error {
+      background-color: #f8d7da;
+      color: #721c24;
+      display: block;
+    }
+
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 2s linear infinite;
+      margin: 20px auto;
+      display: none;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
   </style>
 </head>
@@ -63,15 +109,118 @@
   <div class="container">
     <div class="icon">📶</div>
     <h1>You're Offline</h1>
-    <p>It looks like you've lost your internet connection. Some features of See and Learn may not be available until you're back online.</p>
-    <p>Don't worry though - basic game functionality will still work!</p>
-    <button onclick="window.location.reload()">Try Again</button>
+    <p>It looks like you've lost your internet connection or the app failed to load from the cache.</p>
+    <p>Don't worry - if you've preloaded all resources, the app should still work!</p>
+    
+    <div class="button-container">
+      <button id="tryFromCache">Launch App from Cache</button>
+      <button id="tryAgain">Try Again with Network</button>
+    </div>
+
+    <div id="status" class="status"></div>
+    <div id="loader" class="loader"></div>
   </div>
 
   <script>
+    // Elements
+    const tryFromCacheButton = document.getElementById('tryFromCache');
+    const tryAgainButton = document.getElementById('tryAgain');
+    const statusEl = document.getElementById('status');
+    const loaderEl = document.getElementById('loader');
+
+    // Show a status message
+    function showStatus(message, type) {
+      statusEl.textContent = message;
+      statusEl.className = `status ${type}`;
+    }
+
+    // Show loader
+    function showLoader() {
+      loaderEl.style.display = 'block';
+    }
+
+    // Hide loader
+    function hideLoader() {
+      loaderEl.style.display = 'none';
+    }
+
+    // Try to load the app from cache
+    tryFromCacheButton.addEventListener('click', async () => {
+      showLoader();
+      try {
+        // Try to fetch the index.html from cache
+        const cache = await caches.open('see-and-learn-cache-v2');
+        const cachedIndex = await cache.match(new Request('/index.html'));
+        
+        if (cachedIndex) {
+          // We found index.html in cache - get its text
+          const html = await cachedIndex.text();
+          
+          // Create a data URL from the HTML
+          const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+          
+          // Redirect to the data URL (this will launch the app from the cached HTML)
+          showStatus('Launching app from cache...', 'success');
+          setTimeout(() => {
+            window.location.href = dataUrl;
+          }, 1000);
+        } else {
+          // Try older cache versions
+          const oldCache = await caches.open('see-and-learn-cache-v1');
+          const oldCachedIndex = await oldCache.match(new Request('/index.html'));
+          
+          if (oldCachedIndex) {
+            const html = await oldCachedIndex.text();
+            const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+            showStatus('Launching app from older cache...', 'success');
+            setTimeout(() => {
+              window.location.href = dataUrl;
+            }, 1000);
+          } else {
+            showStatus('Could not find app in cache. Please try again when you have an internet connection.', 'error');
+          }
+        }
+      } catch (error) {
+        console.error('Error loading from cache:', error);
+        showStatus('Error loading app from cache: ' + error.message, 'error');
+      } finally {
+        hideLoader();
+      }
+    });
+
+    // Try to refresh the page
+    tryAgainButton.addEventListener('click', () => {
+      showStatus('Trying to reconnect...', 'success');
+      showLoader();
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    });
+
     // Check if we're back online
     window.addEventListener('online', () => {
-      window.location.reload();
+      showStatus('You are back online! Reloading...', 'success');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    });
+    
+    // Attempt to launch app from cache automatically
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        // Check if we have indexes cached
+        const cache = await caches.open('see-and-learn-cache-v2');
+        const keys = await cache.keys();
+        const hasIndex = keys.some(request => 
+          request.url.endsWith('/index.html') || 
+          request.url.endsWith('/'));
+          
+        if (hasIndex) {
+          showStatus('Found cached app - you can launch it with the button above', 'success');
+        }
+      } catch (error) {
+        console.error('Error checking cache:', error);
+      }
     });
   </script>
 </body>
