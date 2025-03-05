@@ -125,6 +125,24 @@ const PictureCard = ({ item, onClick, onLongPress, disabled, isIncorrect, showWo
   const handleClick = (e) => {
     if (disabled) return;
     
+    // Apply visual feedback directly to the DOM element
+    if (cardRef.current) {
+      cardRef.current.style.transform = 'scale(0.95)';
+      cardRef.current.style.boxShadow = 'inset 0 4px 8px rgba(0, 0, 0, 0.3)';
+      cardRef.current.style.border = '2px solid #3498db';
+      cardRef.current.style.backgroundColor = '#f0f0f0';
+      
+      // Reset after a short delay
+      setTimeout(() => {
+        if (cardRef.current) {
+          cardRef.current.style.transform = '';
+          cardRef.current.style.boxShadow = '';
+          cardRef.current.style.border = '';
+          cardRef.current.style.backgroundColor = '';
+        }
+      }, 200);
+    }
+    
     if (onClick && cardRef.current) {
       const rect = cardRef.current.getBoundingClientRect();
       onClick(rect);
@@ -134,7 +152,7 @@ const PictureCard = ({ item, onClick, onLongPress, disabled, isIncorrect, showWo
   return (
     <div
       ref={cardRef}
-      className={`picture-card ${isPressed ? 'pressed' : ''} ${isHovered ? 'hovered' : ''} ${disabled ? 'disabled' : ''}`}
+      className={`picture-card ${isPressed ? 'pressed' : ''} ${isHovered ? 'hovered' : ''} ${disabled ? 'disabled' : ''} button-like-card`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onTouchStart={handleTouchStart}
@@ -150,21 +168,23 @@ const PictureCard = ({ item, onClick, onLongPress, disabled, isIncorrect, showWo
         position: 'relative',
         overflow: 'hidden',
         borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-        transform: isPressed ? 'scale(0.98)' : 'scale(1)',
+        boxShadow: isPressed 
+          ? 'inset 0 4px 10px rgba(0, 0, 0, 0.3)' 
+          : '0 4px 10px rgba(0, 0, 0, 0.2)',
+        transition: 'all 0.15s ease',
+        transform: isPressed ? 'scale(0.95)' : 'scale(1)',
         opacity: disabled ? 0.7 : 1,
         cursor: disabled ? 'default' : 'pointer',
-        background: 'white',
+        background: isPressed ? '#f0f0f0' : 'white',
+        border: isPressed ? '3px solid #3498db' : '1px solid #e0e0e0',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        willChange: 'transform',
+        willChange: 'transform, box-shadow, border',
         margin: '0 auto',
         width: '100%',
         maxWidth: '100%',
         ...(process.env.NODE_ENV !== 'production' && disabled ? {
-          outline: '2px dashed red',
           position: 'relative'
         } : {})
       }}

@@ -599,6 +599,20 @@ const WordMatchingGame = ({ settings }) => {
           overflow: hidden;
         }
 
+        /* Button-like card styling */
+        .button-like-card {
+          transition: all 0.2s ease !important;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
+          border: 2px solid transparent !important;
+        }
+        
+        .button-like-card.pressed {
+          transform: scale(0.95) !important;
+          box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+          border: 2px solid #3498db !important;
+          background-color: #f0f0f0 !important;
+        }
+
         /* Four cards layout (2x2 on all screens) */
         .pictures-grid.four-cards {
           grid-template-columns: repeat(2, 1fr);

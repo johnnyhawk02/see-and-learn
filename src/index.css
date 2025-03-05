@@ -1,3 +1,11 @@
+/* Force browser to not use cached styles - development only */
+* {
+  -webkit-transition: none !important;
+  -moz-transition: none !important;
+  -o-transition: none !important;
+  transition: none !important;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -15,6 +23,44 @@ code {
 @tailwind components;
 @tailwind utilities;
 
+/* Remove focus outlines from all interactive elements */
+*:focus {
+  outline: none !important;
+}
+
+button, 
+a, 
+[role="button"], 
+input, 
+select, 
+textarea {
+  outline: none !important; /* Remove default outline */
+  box-shadow: none !important; /* Remove any box shadows on focus */
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+}
+
+/* Optional: Add a more subtle focus style for accessibility */
+button:focus-visible, 
+a:focus-visible, 
+[role="button"]:focus-visible, 
+input:focus-visible, 
+select:focus-visible, 
+textarea:focus-visible {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important; /* Subtle blue shadow for accessibility */
+  outline: none !important;
+}
+
+/* Target Webkit browsers specifically */
+*:focus {
+  outline-color: transparent !important;
+  outline-style: none !important;
+}
+
+/* Target Firefox */
+*::-moz-focus-inner {
+  border: 0 !important;
+}
+
 /* Lock to landscape view */
 @media only screen and (orientation: portrait) {
   body {
@@ -31,4 +77,18 @@ code {
     font-size: 2rem;
     text-align: center;
   }
+}
+
+/* Button-like card styling */
+.button-like-card {
+  transition: all 0.2s ease !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
+  border: 2px solid transparent !important;
+}
+
+.button-like-card.pressed {
+  transform: scale(0.95) !important;
+  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+  border: 2px solid #3498db !important;
+  background-color: #f0f0f0 !important;
 }
