@@ -377,7 +377,7 @@ const WordMatchingGame = ({ settings }) => {
           // IMPORTANT: Reset animation state to allow interactions in the next round
           setIsAnimating(false);
         }, 800);
-      }, 1500);
+      }, 5000);
     } else {
       // Add to incorrect selections
       setIncorrectSelections(prev => new Set([...prev, item.id]));
@@ -585,7 +585,7 @@ const WordMatchingGame = ({ settings }) => {
           width: 100%;
           max-width: 900px;
           margin: 0 auto;
-          grid-gap: 4px;
+          grid-gap: 16px;
           justify-content: center !important;
         }
         
@@ -622,7 +622,7 @@ const WordMatchingGame = ({ settings }) => {
         .pictures-grid.two-cards {
           grid-template-columns: repeat(2, 1fr) !important;
           max-width: 800px !important;
-          gap: 1rem !important;
+          gap: 24px !important;
           margin: 0 auto !important;
           display: grid !important;
           visibility: visible !important;
@@ -649,7 +649,7 @@ const WordMatchingGame = ({ settings }) => {
         @media (min-width: 768px) and (max-width: 1024px) {
           .pictures-grid.two-cards {
             max-width: 700px !important;
-            gap: 1.5rem !important;
+            gap: 32px !important;
           }
           
           .pictures-grid.two-cards .picture-card {
@@ -720,7 +720,7 @@ const WordMatchingGame = ({ settings }) => {
         /* Mobile adjustments */
         @media (max-width: 480px) {
           .pictures-grid {
-            grid-gap: 2px;
+            grid-gap: 12px;
           }
         }
         
@@ -760,13 +760,13 @@ const WordMatchingGame = ({ settings }) => {
         /* Responsive grid layout */
         .pictures-grid {
           display: grid;
-          gap: 0.5rem;
+          gap: 16px;
         }
         
         /* Default 2 columns for narrow screens */
         .pictures-grid {
           grid-template-columns: repeat(2, 1fr);
-          gap: 0.5rem;
+          gap: 16px;
         }
 
         /* Adjust spacing in landscape */
